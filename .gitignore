@@ -1,0 +1,76 @@
+# Игнорировать исполняемые файлы и бинарники
+*.exe
+*.out
+*.app
+
+# Игнорировать объектные файлы
+*.o
+*.obj
+
+# Игнорировать статические и динамические библиотеки
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+
+# Игнорировать файлы зависимостей
+*.d
+
+# Игнорировать прекомпилированные заголовки
+*.gch
+*.pch
+
+# Игнорировать файлы отладки
+*.su
+*.idb
+*.pdb
+*.ilk
+*.db
+
+# Игнорировать директории сборки
+build/
+*/build/
+out/
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+CMakeFiles/
+
+# Игнорировать кэш CMake
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+
+# Игнорировать пользовательские файлы IDE
+.vscode/
+.idea/
+*.user
+*.sln
+*.vcxproj*
+*.vcproj
+*.filters
+*.cbp
+*.workspace
+
+# Игнорировать временные файлы
+*~
+*.swp
+*.log
+*.tlog
+
+# Игнорировать файлы покрытия кода
+*.gcda
+*.gcno
+*.gcov
+
+# Игнорировать системные файлы
+.DS_Store
+Thumbs.db
+
+*.json
+.bash_history
