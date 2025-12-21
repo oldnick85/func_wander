@@ -55,9 +55,9 @@ void MainLoop()
         std::ifstream file(g_settings.save_file);
         if (file) {
 
-            const auto task_json =
-                std::string(std::istreambuf_iterator<char>(file),
-                            std::istreambuf_iterator<char>());
+            std::ostringstream buffer;
+            buffer << file.rdbuf();
+            const auto task_json = buffer.str();
 
             if (not task.FromJSON(task_json)) {
                 std::println("Failed to parse JSON from file: {}",
