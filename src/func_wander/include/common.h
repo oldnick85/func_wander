@@ -5,22 +5,50 @@
 #include <cassert>
 #include <iostream>
 #include <set>
-#include <utility>  // for std::pair
+#include <utility>
 #include <vector>
+#include <string>
+#include <format>
 
 namespace fw
 {
+
+/// @addtogroup Common
+/// @{
+
+/// @brief Distance type for comparing function outputs
 using Distance = std::size_t;
+
+/// @brief Type for serial numbers of function trees (supports very large numbers)
 using SerialNumber_t = __int128;
 
+/**
+ * @class RangeSet
+ * @brief Efficient representation of sets using ranges
+ * @tparam Tnum Numeric type for range elements (must be integral)
+ * 
+ * Stores sets as collections of contiguous ranges [start, end].
+ * Efficient for operations on large contiguous sets.
+ * 
+ * Example: {1,2,3,5,6,7,10} → ranges: [1,3], [5,7], [10,10]
+ */
 template <typename Tnum>
 class RangeSet
 {
-   public:
-    // Adds a single number to the set.
+public:
+    /**
+     * @brief Add a single number to the set
+     * @param number Number to add
+     */
     void Add(Tnum number) { AddRange(number, number); }
 
-    // Adds a range [start, end] to the set.
+    /**
+     * @brief Add a range of numbers [start, end] to the set
+     * @param start Start of range (inclusive)
+     * @param end End of range (inclusive)
+     * 
+     * Automatically merges overlapping or adjacent ranges.
+     */
     void AddRange(Tnum start, Tnum end)
     {
         if (start > end) {
@@ -29,7 +57,7 @@ class RangeSet
 
         auto it = m_ranges.lower_bound({start, end});
 
-        // Merge with the previous range if overlapping or adjacent.
+        // Merge with previous range if overlapping or adjacent
         if (it != m_ranges.begin()) {
             auto prev = std::prev(it);
             if (prev->second >= start - 1) {
@@ -39,7 +67,7 @@ class RangeSet
             }
         }
 
-        // Merge with subsequent ranges.
+        // Merge with subsequent ranges
         while (it != m_ranges.end() && it->first <= end + 1) {
             end = std::max(end, it->second);
             it = m_ranges.erase(it);
@@ -48,7 +76,10 @@ class RangeSet
         m_ranges.emplace(start, end);
     }
 
-    // Returns the total count of numbers in all ranges.
+    /**
+     * @brief Count total number of elements in all ranges
+     * @return Total count
+     */
     std::size_t Count() const
     {
         std::size_t total = 0;
@@ -58,13 +89,16 @@ class RangeSet
         return total;
     }
 
-    // Checks if two RangeSets are equal.
+    /// @brief Equality comparison operator
     bool operator==(const RangeSet& other) const
     {
         return m_ranges == other.m_ranges;
     }
 
-    // Str all ranges for debugging.
+    /**
+     * @brief Convert to string representation for debugging
+     * @return String showing all ranges
+     */
     std::string Str() const
     {
         std::string str;
@@ -77,9 +111,11 @@ class RangeSet
         return str;
     }
 
-   private:
-    // Stores ranges as [start, end] pairs, sorted by start.
+private:
+    /// @brief Internal storage of ranges as [start, end] pairs, sorted by start
     std::set<std::pair<Tnum, Tnum>> m_ranges;
 };
+
+/// @} // end of Common group
 
 }  // namespace fw

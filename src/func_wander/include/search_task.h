@@ -6,6 +6,8 @@
 #include <mutex>
 #include <stop_token>
 #include <thread>
+#include <atomic>
+#include <chrono>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -16,8 +18,19 @@ using json = nlohmann::json;
 namespace fw
 {
 
+/// @addtogroup Search
+/// @{
+
+/**
+ * @struct Settings
+ * @brief Configuration parameters for search tasks
+ * 
+ * Contains all tunable parameters that control the search behavior,
+ * including resource limits and output settings.
+ */
 struct Settings
 {
+    /// @brief Equality comparison operator
     bool operator==(const Settings& other) const
     {
         return ((save_file == other.save_file) and
@@ -25,24 +38,57 @@ struct Settings
                 (max_depth == other.max_depth));
     }
 
-    std::string save_file;
-    std::size_t max_best = 32;
-    std::size_t max_depth = 3;
+    std::string save_file;      ///< 📁 File path for automatic save/load of search state
+    std::size_t max_best = 32;  ///< 🏆 Maximum number of best functions to retain
+    std::size_t max_depth = 3;  ///< 🌳 Maximum depth of function trees to explore
 };
 
+/**
+ * @class SearchTask
+ * @brief Main orchestrator for brute-force function discovery
+ * @tparam FuncValue_t Type of function values (e.g., int, double, bool)
+ * @tparam SKIP_CONSTANT Whether to skip constant expressions during iteration
+ * @tparam SKIP_SYMMETRIC Whether to skip symmetric duplicates for commutative ops
+ * 
+ * Manages the systematic exploration of function space to discover
+ * expressions that approximate a target function. Supports parallel
+ * execution, progress tracking, and state persistence.
+ * 
+ * The search enumerates all possible function trees up to a given
+ * depth, evaluates them against the target, and maintains a ranked
+ * list of the best candidates.
+ * 
+ * @note Search can be run in background threads with cooperative
+ * cancellation via std::stop_token.
+ */
 template <typename FuncValue_t, bool SKIP_CONSTANT = false,
           bool SKIP_SYMMETRIC = false>
 class SearchTask
 {
-   public:
+public:
+    /// Type alias for function nodes used in this search
     using FN_t = FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>;
 
+    /**
+     * @brief Construct a new search task
+     * @param settings Configuration parameters for the search
+     * @param atoms Pointer to atomic function library
+     * @param target Pointer to target specification
+     * 
+     * @note The SearchTask does not take ownership of atoms or target.
+     *       These must remain valid for the lifetime of the task.
+     */
     explicit SearchTask(const Settings& settings, AtomFuncs<FuncValue_t>* atoms,
                         Target<FuncValue_t>* target)
         : m_settings(settings), m_atoms(atoms), m_target(target), m_fn{atoms}
     {
     }
 
+    /**
+     * @brief Equality comparison operator
+     * @param other SearchTask to compare with
+     * @return true if tasks have identical state
+     */
     bool operator==(const SearchTask<FuncValue_t, SKIP_CONSTANT,
                                      SKIP_SYMMETRIC>& other) const
     {
@@ -65,19 +111,47 @@ class SearchTask
         return true;
     }
 
+    /**
+     * @brief Advance to next function in enumeration sequence
+     * @return true if next function exists, false if enumeration complete
+     * 
+     * Updates m_fn to the next function tree in lexicographic order.
+     * Used for single-step iteration without starting a background thread.
+     */
     bool Iterate() { return m_fn.Iterate(m_settings.max_depth); }
 
+    /**
+     * @brief Start search in a background thread
+     * 
+     * Launches a std::jthread that runs the Search() method.
+     * Progress can be monitored via Status() and Best() methods.
+     */
     void Run()
     {
         m_thread = std::jthread(std::bind_front(&SearchTask::Search, this));
     }
 
+    /**
+     * @brief Stop background search thread
+     * 
+     * Requests stop via std::stop_token and waits for thread completion.
+     * Search state is preserved and can be resumed or serialized.
+     */
     void Stop()
     {
         m_thread.request_stop();
         m_thread.join();
     }
 
+    /**
+     * @brief Serialize search state to JSON
+     * @return JSON object containing complete search state
+     * 
+     * Includes configuration, progress counters, current position,
+     * and all best functions found so far.
+     * 
+     * @see FromJSON()
+     */
     json ToJSON() const
     {
         json j;
@@ -94,6 +168,16 @@ class SearchTask
         return j;
     }
 
+    /**
+     * @brief Deserialize search state from JSON
+     * @param json_str JSON string containing saved search state
+     * @return true if deserialization successful, false on error
+     * 
+     * Restores search to exactly where it was when saved.
+     * Can be used to resume interrupted searches.
+     * 
+     * @see ToJSON()
+     */
     bool FromJSON(std::string_view json_str)
     {
         auto j = json::parse(json_str, nullptr, false);
@@ -169,14 +253,37 @@ class SearchTask
         return true;
     }
 
+    /**
+     * @brief Check if search has completed
+     * @return true if search exhausted all possibilities, false otherwise
+     */
     bool Done() const { return m_done; }
 
+    /**
+     * @brief Get current best functions found
+     * @return Vector of best function trees, sorted by quality
+     * 
+     * Functions are ranked by a composite score considering:
+     * 1. Distance to target (accuracy)
+     * 2. Tree depth (simplicity)
+     * 3. Node count (compactness)
+     */
     std::vector<FN_t> Best() const
     {
         std::unique_lock lock{m_mtx};
-        return m_best;
+        return std::vector<FN_t>(m_best.begin(), m_best.end());
     }
 
+    /**
+     * @brief Generate human-readable status report
+     * @return Formatted string with progress statistics
+     * 
+     * Includes:
+     * - Iteration count and progress percentage
+     * - Current function being evaluated
+     * - Iterations per second
+     * - List of best functions with their scores
+     */
     std::string Status()
     {
         std::unique_lock lock{m_mtx};
@@ -200,19 +307,29 @@ class SearchTask
         return status;
     }
 
-   private:
-    Settings m_settings;
-    AtomFuncs<FuncValue_t>* m_atoms = nullptr;
-    Target<FuncValue_t>* m_target = nullptr;
-    FN_t m_fn;
-    std::chrono::time_point<std::chrono::steady_clock> m_tm_start;
-    std::size_t m_count = 0;
-    std::list<FN_t> m_best;
-    std::size_t m_dist_threshold = 0;
-    std::mutex m_mtx;
-    std::jthread m_thread;
-    std::atomic_bool m_done = false;
+private:
+    Settings m_settings;                       ///< ⚙️ Search configuration parameters
+    AtomFuncs<FuncValue_t>* m_atoms = nullptr; ///< 🧩 Reference to atomic function library
+    Target<FuncValue_t>* m_target = nullptr;   ///< 🎯 Reference to target specification
+    FN_t m_fn;                                 ///< 🌳 Current function being evaluated
+    std::chrono::time_point<std::chrono::steady_clock> m_tm_start; ///< ⏱️ Search start time
+    std::size_t m_count = 0;                   ///< 🔢 Number of iterations performed
+    std::list<FN_t> m_best;                    ///< 🏆 Best functions found (maintained in order)
+    std::size_t m_dist_threshold = 0;          ///< 📊 Worst distance currently in best list
+    std::mutex m_mtx;                          ///< 🔐 Mutex for thread-safe state access
+    std::jthread m_thread;                     ///< 🧵 Background search thread
+    std::atomic_bool m_done = false;           ///< ✅ Completion flag (atomic for thread safety)
 
+    /**
+     * @brief Calculate composite distance metric for a function
+     * @param fnc Function tree to evaluate
+     * @return Composite distance score (lower = better)
+     * 
+     * Distance formula:
+     *   distance = (target_distance × 10) + depth + (node_count × 2)
+     * 
+     * Weights can be adjusted based on preference for accuracy vs simplicity.
+     */
     std::size_t CalcDist(FN_t& fnc) const
     {
         const auto fnc_calc = fnc.Calculate();
@@ -220,6 +337,19 @@ class SearchTask
         return fnc_cmp * 10 + fnc.CurrentMaxLevel() + fnc.FunctionsCount() * 2;
     }
 
+    /**
+     * @brief Evaluate and potentially add function to best list
+     * @param fnc Candidate function tree
+     * @param max_best Maximum size of best list
+     * 
+     * Algorithm:
+     * 1. Calculate distance score
+     * 2. Skip if worse than current threshold and list is full
+     * 3. Check for uniqueness (exact values or matching positions)
+     * 4. Insert in sorted position
+     * 5. Trim list if exceeds max_best
+     * 6. Update distance threshold
+     */
     void CheckBest(FN_t& fnc, std::size_t max_best = 10)
     {
         if (m_best.empty()) {
@@ -239,6 +369,7 @@ class SearchTask
         while (it != m_best.end()) {
             const auto dist = CalcDist(*it);
             if (new_dist < dist) {
+                // Check for uniqueness to avoid duplicates
                 bool unique_values = true;
                 for (auto& b : m_best) {
                     const auto b_calc = b.Calculate();
@@ -260,12 +391,25 @@ class SearchTask
             ++it;
         }
 
+        // Maintain maximum list size
         while (m_best.size() > max_best)
             m_best.pop_back();
 
+        // Update threshold to worst distance in current best list
         m_dist_threshold = CalcDist(m_best.back());
     }
 
+    /**
+     * @brief Main search loop (runs in background thread)
+     * @param stoken Stop token for cooperative cancellation
+     * 
+     * Continuously iterates through function space until:
+     * - Stop is requested via stop_token
+     * - Search completes (no more functions)
+     * - Done flag is set
+     * 
+     * Progress is automatically saved if save_file is configured.
+     */
     void Search(std::stop_token stoken)
     {
         std::println("    Search started");
@@ -280,7 +424,19 @@ class SearchTask
         }
     }
 
-   public:
+public:
+    /**
+     * @brief Perform single search iteration (thread-safe)
+     * @return true if iteration successful, false if search complete
+     * 
+     * This is the core search operation:
+     * 1. Advance to next function
+     * 2. Evaluate against target
+     * 3. Update best list if warranted
+     * 4. Increment iteration counter
+     * 
+     * Protected by mutex for thread safety when called from Search().
+     */
     bool SearchIterate()
     {
         std::unique_lock lock{m_mtx};
@@ -291,5 +447,7 @@ class SearchTask
         return true;
     }
 };
+
+/// @} // end of Search group
 
 }  // namespace fw
