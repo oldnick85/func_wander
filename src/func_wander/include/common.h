@@ -1,14 +1,15 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <algorithm>
 #include <cassert>
+#include <format>
 #include <iostream>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
-#include <format>
 
 namespace fw
 {
@@ -35,7 +36,7 @@ using SerialNumber_t = __int128;
 template <typename Tnum>
 class RangeSet
 {
-public:
+   public:
     /**
      * @brief Add a single number to the set
      * @param number Number to add
@@ -55,11 +56,11 @@ public:
             std::swap(start, end);
         }
 
-        auto it = m_ranges.lower_bound({start, end});
+        auto range_it = m_ranges.lower_bound({start, end});
 
         // Merge with previous range if overlapping or adjacent
-        if (it != m_ranges.begin()) {
-            auto prev = std::prev(it);
+        if (range_it != m_ranges.begin()) {
+            auto prev = std::prev(range_it);
             if (prev->second >= start - 1) {
                 start = prev->first;
                 end = std::max(prev->second, end);
@@ -68,9 +69,9 @@ public:
         }
 
         // Merge with subsequent ranges
-        while (it != m_ranges.end() && it->first <= end + 1) {
-            end = std::max(end, it->second);
-            it = m_ranges.erase(it);
+        while (range_it != m_ranges.end() && range_it->first <= end + 1) {
+            end = std::max(end, range_it->second);
+            range_it = m_ranges.erase(range_it);
         }
 
         m_ranges.emplace(start, end);
@@ -80,7 +81,7 @@ public:
      * @brief Count total number of elements in all ranges
      * @return Total count
      */
-    std::size_t Count() const
+    [[nodiscard]] std::size_t Count() const
     {
         std::size_t total = 0;
         for (const auto& range : m_ranges) {
@@ -90,28 +91,27 @@ public:
     }
 
     /// @brief Equality comparison operator
-    bool operator==(const RangeSet& other) const
-    {
-        return m_ranges == other.m_ranges;
-    }
+    bool operator==(const RangeSet& other) const { return m_ranges == other.m_ranges; }
 
     /**
      * @brief Convert to string representation for debugging
      * @return String showing all ranges
      */
-    std::string Str() const
+    [[nodiscard]] std::string Str() const
     {
         std::string str;
         for (const auto& range : m_ranges) {
-            if (range.first != range.second)
+            if (range.first != range.second) {
                 str += std::format("[{},{}] ", range.first, range.second);
-            else
+            }
+            else {
                 str += std::format("{} ", range.first);
+            }
         }
         return str;
     }
 
-private:
+   private:
     /// @brief Internal storage of ranges as [start, end] pairs, sorted by start
     std::set<std::pair<Tnum, Tnum>> m_ranges;
 };

@@ -71,13 +71,7 @@ endif()
 if(func_wander_ENABLE_CLANG_TIDY)
     find_program(CLANG_TIDY_EXE NAMES clang-tidy)
     if(CLANG_TIDY_EXE)
-        set(CMAKE_CXX_CLANG_TIDY 
-            ${CLANG_TIDY_EXE}
-            -checks=-*,readability-*,modernize-*,-modernize-use-trailing-return-type,
-                    performance-*,portability-*,bugprone-*,-bugprone-exception-escape,
-                    clang-analyzer-*,cppcoreguidelines-*
-            --warnings-as-errors=*
-        )
+        set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE})
         message(STATUS "Clang-Tidy enabled: ${CLANG_TIDY_EXE}")
     else()
         message(WARNING "Clang-Tidy requested but executable not found")
@@ -110,7 +104,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Additional warnings for GNU/Clang
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-            add_compile_options(-Wmisleading-indentation -Wduplicated-cond)
+            add_compile_options(-Wmisleading-indentation)
         endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)

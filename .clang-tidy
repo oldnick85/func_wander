@@ -1,0 +1,89 @@
+Checks: >
+    *,
+    -altera-*,
+    -fuchsia-*,
+    -android-*,
+    -zircon-*,
+    -abseil-*,
+    -llvmlibc-*,
+    -boost-*,
+    -cert-err58-cpp,
+    -bugprone-exception-escape,
+    -cppcoreguidelines-prefer-member-initializer,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -hicpp-special-member-functions,
+    -hicpp-signed-bitwise,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-bounds-constant-array-index,
+    -readability-else-after-return,
+    -llvm-else-after-return,
+    -misc-non-private-member-variables-in-classes,
+    -llvm-header-guard,
+    -modernize-use-trailing-return-type,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -cppcoreguidelines-special-member-functions,
+    -modernize-use-trailing-return-type,
+    -readability-identifier-naming,
+    -google-readability-namespace-comments,
+    -google-global-names-in-headers,
+    -fuchsia-default-arguments,
+    -fuchsia-overloaded-operator,
+    -bugprone-easily-swappable-parameters,
+    -clang-analyzer-optin.performance.Padding,
+    -misc-no-recursion,
+    -portability-template-virtual-member-function
+
+CheckOptions:
+  # base
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: modernize-use-using.IgnoreMacros
+    value: true
+  - key: modernize-loop-convert.MaxCopySize
+    value: 16
+  - key: modernize-use-emplace.IgnoreImplicitConstructors
+    value: false
+  
+  # C++23
+  - key: modernize-use-std-format.EnableCxx23Formatters
+    value: true
+  - key: modernize-use-std-views.EnableCxx23Features
+    value: true
+  
+  # readability
+  - key: readability-identifier-length.MinVariableNameLength
+    value: 2
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: '^[ijknmpqxyzt]$|^[A-Z][A-Z0-9_]*$|^[a-z]_?$'
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  
+  # magic numbers
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '1;2;3;4;255;10;1000;1000000;1000000000'
+  - key: readability-magic-numbers.IgnoredFloatingPointValues
+    value: '1.0;100.0;0.5'
+  - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
+    value: true
+  
+  # clipp
+  - key: modernize-raw-string-literal.IgnoreMacros
+    value: true
+  
+  # libsodium
+  - key: cppcoreguidelines-pro-type-vararg.IgnoredTypes
+    value: 'sodium_misuse_handler'
+
+HeaderFilterRegex: '.*'
+
+# fomat
+FormatStyle: none
+
+# system
+SystemHeaders: false
+
+# color
+UseColor: true
+
+# macros
+WarningsAsErrors: '*'

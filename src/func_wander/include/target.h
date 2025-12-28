@@ -30,21 +30,21 @@ public:
      * @param values Output values from candidate function
      * @return Distance metric (0 = perfect match, higher = worse)
      */
-    virtual Distance Compare(const FuncValues_t& values) const = 0;
+    [[nodiscard]] virtual Distance Compare(const FuncValues_t& values) const = 0;
 
     /**
      * @brief Find positions where candidate matches target
      * @param values Output values from candidate function
      * @return RangeSet of indices where values match target
      */
-    virtual RangeSet<std::size_t> MatchPositions(
+    [[nodiscard]] virtual RangeSet<std::size_t> MatchPositions(
         const FuncValues_t& values) const = 0;
 
     /**
      * @brief Get the target function values
      * @return Vector of desired output values
      */
-    virtual FuncValues_t Values() const = 0;
+    [[nodiscard]] virtual FuncValues_t Values() const = 0;
 };
 
 /// @} // end of Targets group

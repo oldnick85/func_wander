@@ -1,16 +1,29 @@
 #include <gtest/gtest.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <print>
-#include <set>
+#include <vector>
 
+#include <atom_samples.h>
+#include <common.h>
 #include <func_node.h>
+#include <search_task.h>
+#include <target.h>
 
-#include "atom_samples.h"
-#include "search_task.h"
+using fw::AtomFuncs;
+using fw::Distance;
+using fw::FuncNode;
+using fw::RangeSet;
+using fw::SearchTask;
+using fw::Settings;
+using fw::Target;
 
 class TestTarget : public Target<uint16_t>
 {
    public:
-    ~TestTarget() final = default;
+    ~TestTarget() override = default;
 
     TestTarget()
     {
@@ -20,7 +33,7 @@ class TestTarget : public Target<uint16_t>
         }
     }
 
-    Distance Compare(const FuncValues_t& values) const final
+    [[nodiscard]] Distance Compare(const FuncValues_t& values) const override
     {
         Distance dist{};
         for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
@@ -31,7 +44,7 @@ class TestTarget : public Target<uint16_t>
         return dist;
     }
 
-    RangeSet<std::size_t> MatchPositions(const FuncValues_t& values) const final
+    [[nodiscard]] RangeSet<std::size_t> MatchPositions(const FuncValues_t& values) const override
     {
         RangeSet<std::size_t> rset;
         for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
@@ -42,38 +55,59 @@ class TestTarget : public Target<uint16_t>
         return rset;
     }
 
-    FuncValues_t Values() const final { return m_values; }
+    [[nodiscard]] FuncValues_t Values() const override { return m_values; }
 
    private:
     FuncValues_t m_values;
 };
 
+namespace
+{
+
+std::unique_ptr<AF_ARG_X> af_x;
+std::vector<std::unique_ptr<AF_CONST>> af_c;
+std::unique_ptr<AF_NOT> af_not;
+std::unique_ptr<AF_BITCOUNT> af_bc;
+std::unique_ptr<AF_SUM> af_sum;
+std::unique_ptr<AF_AND> af_and;
+std::unique_ptr<AF_OR> af_or;
+
 auto MakeAtoms() -> AtomFuncs<uint16_t>
 {
     constexpr uint16_t MAX_CONSTANTS = 3;
     AtomFuncs<uint16_t> atoms;
-    atoms.arg0.push_back(new AF_ARG_X{});
+    af_x = std::make_unique<AF_ARG_X>();
+    atoms.arg0.push_back(af_x.get());
     for (uint16_t i = 1; i <= MAX_CONSTANTS; ++i) {
-        atoms.arg0.push_back(new AF_CONST{i});
+        af_c.emplace_back(std::make_unique<AF_CONST>(i));
+        atoms.arg0.push_back(af_c.back().get());
     }
-    atoms.arg1.push_back(new AF_NOT{});
-    atoms.arg1.push_back(new AF_BITCOUNT{});
-    atoms.arg2.push_back(new AF_SUM{});
-    atoms.arg2.push_back(new AF_AND{});
-    atoms.arg2.push_back(new AF_OR{});
+    af_not = std::make_unique<AF_NOT>();
+    atoms.arg1.push_back(af_not.get());
+    af_bc = std::make_unique<AF_BITCOUNT>();
+    atoms.arg1.push_back(af_bc.get());
+    af_sum = std::make_unique<AF_SUM>();
+    atoms.arg2.push_back(af_sum.get());
+    af_and = std::make_unique<AF_AND>();
+    atoms.arg2.push_back(af_and.get());
+    af_or = std::make_unique<AF_OR>();
+    atoms.arg2.push_back(af_or.get());
     return atoms;
 }
 
-TEST(FUNC_ITERATOR, SERIAL_NUMBER)
+}  // namespace
+
+// NOLINTBEGIN(readability-function-cognitive-complexity, readability-function-size)
+TEST(FuncIterator, SerialNumber)
 {
     AtomFuncs<uint16_t> atoms = MakeAtoms();
     FuncNode<uint16_t> fnc{&atoms};
     auto snum = fnc.SerialNumber();
     ASSERT_EQ(snum, 0);
     std::size_t snum_old = snum;
-    std::size_t snum_etalon = 0;
+    //std::size_t snum_etalon = 0;
     while (fnc.Iterate(2)) {
-        ++snum_etalon;
+        //++snum_etalon;
         snum = fnc.SerialNumber();
         //if (snum_etalon == 839)
         //printf("%s %zu %zu\n", fnc.Repr().c_str(), snum, snum_etalon);
@@ -82,7 +116,7 @@ TEST(FUNC_ITERATOR, SERIAL_NUMBER)
     }
 }
 
-TEST(FUNC_ITERATOR, SKIP_SYMMETRIC)
+TEST(FuncIterator, SkipSymmetric)
 {
     AtomFuncs<uint16_t> atoms = MakeAtoms();
     FuncNode<uint16_t, false, true> fnc{&atoms};
@@ -161,7 +195,7 @@ TEST(FUNC_ITERATOR, SKIP_SYMMETRIC)
     ASSERT_EQ(fnc.Repr(), "NOT(NOT(X))");
 }
 
-TEST(SEARCH_TASK, JSON)
+TEST(SearchTask, JSON)
 {
     constexpr std::size_t MAX_BEST = 5;
     constexpr std::size_t MAX_ITERATIONS = 100;
@@ -183,6 +217,7 @@ TEST(SEARCH_TASK, JSON)
     }
     ASSERT_TRUE(true);
 }
+// NOLINTEND(readability-function-cognitive-complexity, readability-function-size)
 
 int main(int argc, char** argv)
 {

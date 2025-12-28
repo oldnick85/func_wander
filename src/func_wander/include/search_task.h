@@ -1,13 +1,13 @@
 #pragma once
 
+#include <atomic>
+#include <chrono>
 #include <format>
 #include <functional>
 #include <list>
 #include <mutex>
 #include <stop_token>
 #include <thread>
-#include <atomic>
-#include <chrono>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -33,9 +33,7 @@ struct Settings
     /// @brief Equality comparison operator
     bool operator==(const Settings& other) const
     {
-        return ((save_file == other.save_file) and
-                (max_best == other.max_best) and
-                (max_depth == other.max_depth));
+        return ((save_file == other.save_file) and (max_best == other.max_best) and (max_depth == other.max_depth));
     }
 
     std::string save_file;      ///< 📁 File path for automatic save/load of search state
@@ -61,11 +59,10 @@ struct Settings
  * @note Search can be run in background threads with cooperative
  * cancellation via std::stop_token.
  */
-template <typename FuncValue_t, bool SKIP_CONSTANT = false,
-          bool SKIP_SYMMETRIC = false>
+template <typename FuncValue_t, bool SKIP_CONSTANT = false, bool SKIP_SYMMETRIC = false>
 class SearchTask
 {
-public:
+   public:
     /// Type alias for function nodes used in this search
     using FN_t = FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>;
 
@@ -78,9 +75,8 @@ public:
      * @note The SearchTask does not take ownership of atoms or target.
      *       These must remain valid for the lifetime of the task.
      */
-    explicit SearchTask(const Settings& settings, AtomFuncs<FuncValue_t>* atoms,
-                        Target<FuncValue_t>* target)
-        : m_settings(settings), m_atoms(atoms), m_target(target), m_fn{atoms}
+    explicit SearchTask(Settings settings, AtomFuncs<FuncValue_t>* atoms, Target<FuncValue_t>* target)
+        : m_settings(std::move(settings)), m_atoms(atoms), m_target(target), m_fn{atoms}
     {
     }
 
@@ -89,25 +85,32 @@ public:
      * @param other SearchTask to compare with
      * @return true if tasks have identical state
      */
-    bool operator==(const SearchTask<FuncValue_t, SKIP_CONSTANT,
-                                     SKIP_SYMMETRIC>& other) const
+    bool operator==(const SearchTask<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>& other) const
     {
-        if (m_settings != other.m_settings)
+        if (m_settings != other.m_settings) {
             return false;
-        if (m_atoms != other.m_atoms)
+        }
+        if (m_atoms != other.m_atoms) {
             return false;
-        if (m_target != other.m_target)
+        }
+        if (m_target != other.m_target) {
             return false;
-        if (m_fn != other.m_fn)
+        }
+        if (m_fn != other.m_fn) {
             return false;
-        if (m_count != other.m_count)
+        }
+        if (m_count != other.m_count) {
             return false;
-        if (m_best != other.m_best)
+        }
+        if (m_best != other.m_best) {
             return false;
-        if (m_dist_threshold != other.m_dist_threshold)
+        }
+        if (m_dist_threshold != other.m_dist_threshold) {
             return false;
-        if (m_done != other.m_done)
+        }
+        if (m_done != other.m_done) {
             return false;
+        }
         return true;
     }
 
@@ -126,10 +129,7 @@ public:
      * Launches a std::jthread that runs the Search() method.
      * Progress can be monitored via Status() and Best() methods.
      */
-    void Run()
-    {
-        m_thread = std::jthread(std::bind_front(&SearchTask::Search, this));
-    }
+    void Run() { m_thread = std::jthread(std::bind_front(&SearchTask::Search, this)); }
 
     /**
      * @brief Stop background search thread
@@ -152,7 +152,7 @@ public:
      * 
      * @see FromJSON()
      */
-    json ToJSON() const
+    [[nodiscard]] json ToJSON() const
     {
         json j;
         j["settings"]["max_best"] = m_settings.max_best;
@@ -181,72 +181,98 @@ public:
     bool FromJSON(std::string_view json_str)
     {
         auto j = json::parse(json_str, nullptr, false);
-        if (j.is_discarded())
+        if (j.is_discarded()) {
             return false;
+        }
 
-        if (not j.is_object())
+        if (not j.is_object()) {
             return false;
+        }
 
         const auto j_settings = j.find("settings");
-        if (j_settings == j.end())
+        if (j_settings == j.end()) {
             return false;
-        if (not j_settings->is_object())
+        }
+        if (not j_settings->is_object()) {
             return false;
+        }
 
         const auto j_settings_max_best = j_settings->find("max_best");
-        if (j_settings_max_best == j_settings->end())
+        if (j_settings_max_best == j_settings->end()) {
             return false;
-        if (not j_settings_max_best->is_number())
+        }
+        if (not j_settings_max_best->is_number()) {
             return false;
+        }
         m_settings.max_best = j_settings_max_best->get<std::size_t>();
 
         const auto j_settings_max_depth = j_settings->find("max_depth");
-        if (j_settings_max_depth == j_settings->end())
+        if (j_settings_max_depth == j_settings->end()) {
             return false;
-        if (not j_settings_max_depth->is_number())
+        }
+        if (not j_settings_max_depth->is_number()) {
             return false;
+        }
         m_settings.max_depth = j_settings_max_depth->get<std::size_t>();
 
         const auto j_count = j.find("count");
-        if (j_count == j.end())
+        if (j_count == j.end()) {
             return false;
-        if (not j_count->is_number())
+        }
+        if (not j_count->is_number()) {
             return false;
+        }
         m_count = j_count->get<std::size_t>();
 
         const auto j_done = j.find("done");
-        if (j_done == j.end())
+        if (j_done == j.end()) {
             return false;
-        if (not j_done->is_boolean())
+        }
+        if (not j_done->is_boolean()) {
             return false;
+        }
         m_done = j_done->get<bool>();
 
         const auto j_dist_threshold = j.find("dist_threshold");
-        if (j_dist_threshold == j.end())
+        if (j_dist_threshold == j.end()) {
             return false;
-        if (not j_dist_threshold->is_number())
+        }
+        if (not j_dist_threshold->is_number()) {
             return false;
+        }
         m_dist_threshold = j_dist_threshold->get<std::size_t>();
 
         const auto j_fn = j.find("current_fn");
-        if (j_fn == j.end())
+        if (j_fn == j.end()) {
             return false;
-        if (not j_fn->is_object())
+        }
+        if (not j_fn->is_object()) {
             return false;
+        }
 
-        if (not m_fn.FromJSON(*j_fn))
+        if (not m_fn.FromJSON(*j_fn)) {
             return false;
+        }
 
         m_best.clear();
         const auto j_best = j.find("best");
         if (j_best != j.end()) {
-            if (not j_best->is_array())
+            if (not j_best->is_array()) {
                 return false;
+            }
 
-            for (auto it = j_best->begin(); it != j_best->end(); ++it) {
+            //for (auto j_best_it = j_best->begin(); j_best_it != j_best->end(); ++j_best_it) {
+            //    m_best.emplace_back(m_atoms);
+            //    if (not m_best.back().FromJSON(*j_best_it)) {
+            //        return false;
+            //    }
+            //}
+
+            for (auto& j_best_it : *j_best) {
                 m_best.emplace_back(m_atoms);
-                if (not m_best.back().FromJSON(*it))
+                if (not m_best.back().FromJSON(j_best_it)) {
                     return false;
+                }
             }
         }
 
@@ -257,7 +283,7 @@ public:
      * @brief Check if search has completed
      * @return true if search exhausted all possibilities, false otherwise
      */
-    bool Done() const { return m_done; }
+    [[nodiscard]] bool Done() const { return m_done; }
 
     /**
      * @brief Get current best functions found
@@ -268,7 +294,7 @@ public:
      * 2. Tree depth (simplicity)
      * 3. Node count (compactness)
      */
-    std::vector<FN_t> Best() const
+    [[nodiscard]] std::vector<FN_t> Best() const
     {
         std::unique_lock lock{m_mtx};
         return std::vector<FN_t>(m_best.begin(), m_best.end());
@@ -286,39 +312,35 @@ public:
      */
     std::string Status()
     {
-        std::unique_lock lock{m_mtx};
-        const auto sn = m_fn.SerialNumber();
+        const std::unique_lock lock{m_mtx};
+        const auto snum = m_fn.SerialNumber();
         const auto max_sn = m_fn.MaxSerialNumber(m_settings.max_depth);
-        const float done_percent = (sn * 100.0f) / max_sn;
-        const auto d = std::chrono::duration_cast<std::chrono::milliseconds>(
-                           std::chrono::steady_clock::now() - m_tm_start)
-                           .count();
-        const float c_per_sec = static_cast<float>(m_count) * 1000.0f / d;
-        auto status = std::format(
-            "iteration {}({:3}/{:3}): {} ({}%)\n{} iterations per second\n",
-            m_count, float(sn), float(max_sn), m_fn.Repr(), done_percent,
-            c_per_sec);
-        for (auto& b : m_best) {
-            status += std::format(
-                "{}({}): {} <{}>\n", m_target->Compare(b.Calculate()),
-                b.CurrentMaxLevel(), b.Repr(),
-                m_target->MatchPositions(b.Calculate()).Str());
+        const float done_percent = (snum * 100.0F) / max_sn;
+        const auto d =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_tm_start)
+                .count();
+        const float c_per_sec = static_cast<float>(m_count) * 1000.0F / d;
+        auto status = std::format("iteration {}({:3}/{:3}): {} ({}%)\n{} iterations per second\n", m_count, float(snum),
+                                  float(max_sn), m_fn.Repr(), done_percent, c_per_sec);
+        for (auto& best : m_best) {
+            status += std::format("{}({}): {} <{}>\n", m_target->Compare(best.Calculate()), best.CurrentMaxLevel(),
+                                  best.Repr(), m_target->MatchPositions(best.Calculate()).Str());
         }
         return status;
     }
 
-private:
-    Settings m_settings;                       ///< ⚙️ Search configuration parameters
-    AtomFuncs<FuncValue_t>* m_atoms = nullptr; ///< 🧩 Reference to atomic function library
-    Target<FuncValue_t>* m_target = nullptr;   ///< 🎯 Reference to target specification
-    FN_t m_fn;                                 ///< 🌳 Current function being evaluated
-    std::chrono::time_point<std::chrono::steady_clock> m_tm_start; ///< ⏱️ Search start time
-    std::size_t m_count = 0;                   ///< 🔢 Number of iterations performed
-    std::list<FN_t> m_best;                    ///< 🏆 Best functions found (maintained in order)
-    std::size_t m_dist_threshold = 0;          ///< 📊 Worst distance currently in best list
-    std::mutex m_mtx;                          ///< 🔐 Mutex for thread-safe state access
-    std::jthread m_thread;                     ///< 🧵 Background search thread
-    std::atomic_bool m_done = false;           ///< ✅ Completion flag (atomic for thread safety)
+   private:
+    Settings m_settings;                                            ///< ⚙️ Search configuration parameters
+    AtomFuncs<FuncValue_t>* m_atoms = nullptr;                      ///< 🧩 Reference to atomic function library
+    Target<FuncValue_t>* m_target = nullptr;                        ///< 🎯 Reference to target specification
+    FN_t m_fn;                                                      ///< 🌳 Current function being evaluated
+    std::chrono::time_point<std::chrono::steady_clock> m_tm_start;  ///< ⏱️ Search start time
+    std::size_t m_count = 0;                                        ///< 🔢 Number of iterations performed
+    std::list<FN_t> m_best;                                         ///< 🏆 Best functions found (maintained in order)
+    std::size_t m_dist_threshold = 0;                               ///< 📊 Worst distance currently in best list
+    std::mutex m_mtx;                                               ///< 🔐 Mutex for thread-safe state access
+    std::jthread m_thread;                                          ///< 🧵 Background search thread
+    std::atomic_bool m_done = false;                                ///< ✅ Completion flag (atomic for thread safety)
 
     /**
      * @brief Calculate composite distance metric for a function
@@ -334,7 +356,7 @@ private:
     {
         const auto fnc_calc = fnc.Calculate();
         const auto fnc_cmp = m_target->Compare(fnc_calc);
-        return fnc_cmp * 10 + fnc.CurrentMaxLevel() + fnc.FunctionsCount() * 2;
+        return (fnc_cmp * 10) + fnc.CurrentMaxLevel() + (fnc.FunctionsCount() * 2);
     }
 
     /**
@@ -361,13 +383,14 @@ private:
         const auto fnc_ranges = m_target->MatchPositions(fnc_calc);
         const auto new_dist = CalcDist(fnc);
         if (m_best.size() >= max_best) {
-            if (new_dist > m_dist_threshold)
+            if (new_dist > m_dist_threshold) {
                 return;
+            }
         }
 
-        auto it = m_best.begin();
-        while (it != m_best.end()) {
-            const auto dist = CalcDist(*it);
+        auto best_it = m_best.begin();
+        while (best_it != m_best.end()) {
+            const auto dist = CalcDist(*best_it);
             if (new_dist < dist) {
                 // Check for uniqueness to avoid duplicates
                 bool unique_values = true;
@@ -383,17 +406,19 @@ private:
                         break;
                     }
                 }
-                if (not unique_values)
+                if (not unique_values) {
                     break;
-                m_best.insert(it, fnc);
+                }
+                m_best.insert(best_it, fnc);
                 break;
             }
-            ++it;
+            ++best_it;
         }
 
         // Maintain maximum list size
-        while (m_best.size() > max_best)
+        while (m_best.size() > max_best) {
             m_best.pop_back();
+        }
 
         // Update threshold to worst distance in current best list
         m_dist_threshold = CalcDist(m_best.back());
@@ -410,6 +435,7 @@ private:
      * 
      * Progress is automatically saved if save_file is configured.
      */
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
     void Search(std::stop_token stoken)
     {
         std::println("    Search started");
@@ -424,7 +450,7 @@ private:
         }
     }
 
-public:
+   public:
     /**
      * @brief Perform single search iteration (thread-safe)
      * @return true if iteration successful, false if search complete
@@ -439,9 +465,10 @@ public:
      */
     bool SearchIterate()
     {
-        std::unique_lock lock{m_mtx};
-        if (not m_fn.Iterate(m_settings.max_depth))
+        const std::unique_lock lock{m_mtx};
+        if (not m_fn.Iterate(m_settings.max_depth)) {
             return false;
+        }
         CheckBest(m_fn, m_settings.max_best);
         ++m_count;
         return true;

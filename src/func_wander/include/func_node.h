@@ -2,8 +2,8 @@
 
 #include <format>
 #include <memory>
-#include <vector>
 #include <nlohmann/json.hpp>
+#include <vector>
 using json = nlohmann::json;
 
 #include "atom.h"
@@ -24,10 +24,7 @@ namespace fw
 struct AtomIndex
 {
     /// @brief Equality comparison operator
-    bool operator==(const AtomIndex& other) const
-    {
-        return ((arity == other.arity) and (num == other.num));
-    }
+    bool operator==(const AtomIndex& other) const { return ((arity == other.arity) and (num == other.num)); }
 
     std::size_t arity = 0;  ///< Arity of function (0, 1, or 2)
     std::size_t num = 0;    ///< Index in the corresponding arity vector
@@ -44,7 +41,7 @@ struct AtomIndex
 template <typename FuncValue_t>
 class AtomFuncs
 {
-public:
+   public:
     /**
      * @brief Add a nullary function
      * @param func Pointer to nullary function
@@ -63,7 +60,7 @@ public:
 
     /// @brief Add a unary function
     void Add(AtomFunc1<FuncValue_t>* func) { arg1.push_back(func); }
-    
+
     /// @brief Add a binary function
     void Add(AtomFunc2<FuncValue_t>* func) { arg2.push_back(func); }
 
@@ -107,11 +104,10 @@ public:
  * 
  * The tree can be evaluated, serialized, and iterated over.
  */
-template <typename FuncValue_t, bool SKIP_CONSTANT = false,
-          bool SKIP_SYMMETRIC = false>
+template <typename FuncValue_t, bool SKIP_CONSTANT = false, bool SKIP_SYMMETRIC = false>
 class FuncNode
 {
-public:
+   public:
     /// Vector type for function values
     using FuncValues_t = std::vector<FuncValue_t>;
     /// Type alias for atomic function container
@@ -121,11 +117,10 @@ public:
      * @brief Construct a FuncNode with reference to atomic functions
      * @param atoms Pointer to container of atomic functions
      */
-    FuncNode(AtomFuncs_t* atoms) : m_atoms(atoms) {}
+    explicit FuncNode(AtomFuncs_t* atoms) : m_atoms(atoms) {}
 
     /// @brief Copy constructor (deep copy)
-    FuncNode(const FuncNode& other)
-        : m_atoms(other.m_atoms), m_atom_index(other.m_atom_index)
+    FuncNode(const FuncNode& other) : m_atoms(other.m_atoms), m_atom_index(other.m_atom_index)
     {
         // Deep copy children based on arity
         switch (Arity()) {
@@ -147,8 +142,7 @@ public:
     }
 
     /// @brief Move constructor
-    FuncNode(FuncNode&& other) noexcept
-        : m_atoms(other.m_atoms), m_atom_index(other.m_atom_index)
+    FuncNode(FuncNode&& other) noexcept : m_atoms(other.m_atoms), m_atom_index(other.m_atom_index)
     {
         switch (Arity()) {
             case 0:
@@ -174,7 +168,7 @@ public:
         if (this != &other) {
             m_atoms = other.m_atoms;
             m_atom_index = other.m_atom_index;
-            
+
             // Reconstruct children based on arity
             switch (Arity()) {
                 case 0:
@@ -203,40 +197,50 @@ public:
      */
     bool operator==(const FuncNode& other) const
     {
-        if (m_atoms != other.m_atoms) return false;
-        if (m_atom_index != other.m_atom_index) return false;
+        if (m_atoms != other.m_atoms) {
+            return false;
+        }
+        if (m_atom_index != other.m_atom_index) {
+            return false;
+        }
 
         // Compare children recursively
         if (m_arg1 == nullptr) {
-            if (other.m_arg1 != nullptr)
+            if (other.m_arg1 != nullptr) {
                 return false;
+            }
         }
         else {
-            if (other.m_arg1 == nullptr)
+            if (other.m_arg1 == nullptr) {
                 return false;
-            if (*m_arg1 != *other.m_arg1)
+            }
+            if (*m_arg1 != *other.m_arg1) {
                 return false;
+            }
         }
 
         if (m_arg2 == nullptr) {
-            if (other.m_arg2 != nullptr)
+            if (other.m_arg2 != nullptr) {
                 return false;
+            }
         }
         else {
-            if (other.m_arg2 == nullptr)
+            if (other.m_arg2 == nullptr) {
                 return false;
-            if (*m_arg2 != *other.m_arg2)
+            }
+            if (*m_arg2 != *other.m_arg2) {
                 return false;
+            }
         }
 
         return true;
     }
 
     /// @brief Get arity of this node (0, 1, or 2)
-    std::size_t Arity() const { return m_atom_index.arity; }
+    [[nodiscard]] std::size_t Arity() const { return m_atom_index.arity; }
 
     /// @brief Count total number of function nodes in the tree
-    std::size_t FunctionsCount() const
+    [[nodiscard]] std::size_t FunctionsCount() const
     {
         switch (Arity()) {
             case 0:
@@ -244,8 +248,7 @@ public:
             case 1:
                 return (m_arg1->FunctionsCount() + 1);
             case 2:
-                return (m_arg1->FunctionsCount() + m_arg2->FunctionsCount() +
-                        1);
+                return (m_arg1->FunctionsCount() + m_arg2->FunctionsCount() + 1);
             default:
                 return 0;
         }
@@ -253,7 +256,7 @@ public:
     }
 
     /// @brief Get maximum depth of the tree (height)
-    std::size_t CurrentMaxLevel() const
+    [[nodiscard]] std::size_t CurrentMaxLevel() const
     {
         switch (Arity()) {
             case 0:
@@ -261,9 +264,7 @@ public:
             case 1:
                 return (m_arg1->CurrentMaxLevel() + 1);
             case 2:
-                return (std::max(m_arg1->CurrentMaxLevel(),
-                                 m_arg2->CurrentMaxLevel()) +
-                        1);
+                return (std::max(m_arg1->CurrentMaxLevel(), m_arg2->CurrentMaxLevel()) + 1);
             default:
                 return 0;
         }
@@ -271,7 +272,7 @@ public:
     }
 
     /// @brief Get minimum depth to any leaf node
-    std::size_t CurrentMinLevel() const
+    [[nodiscard]] std::size_t CurrentMinLevel() const
     {
         switch (Arity()) {
             case 0:
@@ -279,9 +280,7 @@ public:
             case 1:
                 return (m_arg1->CurrentMinLevel() + 1);
             case 2:
-                return (std::min(m_arg1->CurrentMinLevel(),
-                                 m_arg2->CurrentMinLevel()) +
-                        1);
+                return (std::min(m_arg1->CurrentMinLevel(), m_arg2->CurrentMinLevel()) + 1);
             default:
                 return 0;
         }
@@ -293,14 +292,14 @@ public:
      * @param level Maximum depth of trees
      * @return Maximum possible serial number for trees of this depth
      */
-    SerialNumber_t MaxSerialNumber(std::size_t level) const
+    [[nodiscard]] SerialNumber_t MaxSerialNumber(std::size_t level) const
     {
-        if (level == 0)
+        if (level == 0) {
             return m_atoms->arg0.size();
-        
+        }
+
         const auto max_prev = MaxSerialNumber(level - 1);
-        const auto m = max_prev * max_prev * m_atoms->arg2.size() +
-                       max_prev * m_atoms->arg1.size() + max_prev;
+        const auto m = (max_prev * max_prev * m_atoms->arg2.size()) + (max_prev * m_atoms->arg1.size()) + max_prev;
         return m;
     }
 
@@ -310,30 +309,32 @@ public:
      * 
      * Serial numbers are assigned in lexicographic order of tree structures.
      */
-    SerialNumber_t SerialNumber() const
+    [[nodiscard]] SerialNumber_t SerialNumber() const
     {
-        if (Arity() == 0)
+        if (Arity() == 0) {
             return m_atom_index.num;
-            
+        }
+
         const auto level = CurrentMaxLevel();
         const auto max_prev = MaxSerialNumber(level - 1);
-        std::size_t sn = max_prev;
-        
+        std::size_t snum = max_prev;
+
         if (Arity() == 1) {
-            sn += max_prev * m_atom_index.num;
-            auto sn1 = m_arg1->SerialNumber();
-            if (m_arg1->CurrentMaxLevel() > 0)
-                sn1 -= m_atoms->arg0.size();
-            sn += sn1;
+            snum += max_prev * m_atom_index.num;
+            auto snum1 = m_arg1->SerialNumber();
+            if (m_arg1->CurrentMaxLevel() > 0) {
+                snum1 -= m_atoms->arg0.size();
+            }
+            snum += snum1;
         }
         else if (Arity() == 2) {
-            sn += max_prev * m_atoms->arg1.size();
-            sn += max_prev * max_prev * m_atom_index.num;
-            auto sn1 = m_arg1->SerialNumber();
-            auto sn2 = m_arg2->SerialNumber();
-            sn += max_prev * sn2 + sn1;
+            snum += max_prev * m_atoms->arg1.size();
+            snum += max_prev * max_prev * m_atom_index.num;
+            auto snum1 = m_arg1->SerialNumber();
+            auto snum2 = m_arg2->SerialNumber();
+            snum += max_prev * snum2 + snum1;
         }
-        return sn;
+        return snum;
     }
 
     /// @brief Clear cached calculation results
@@ -354,12 +355,10 @@ public:
                     m_values = m_atoms->arg0[m_atom_index.num]->Calculate();
                     break;
                 case 1:
-                    m_values = m_atoms->arg1[m_atom_index.num]->Calculate(
-                        m_arg1->Calculate());
+                    m_values = m_atoms->arg1[m_atom_index.num]->Calculate(m_arg1->Calculate());
                     break;
                 case 2:
-                    m_values = m_atoms->arg2[m_atom_index.num]->Calculate(
-                        m_arg1->Calculate(), m_arg2->Calculate());
+                    m_values = m_atoms->arg2[m_atom_index.num]->Calculate(m_arg1->Calculate(), m_arg2->Calculate());
                     break;
                 default:
                     break;
@@ -392,20 +391,16 @@ public:
      * @param append Optional string to append to representation
      * @return String in format f(arg1, arg2, ...)
      */
-    std::string Repr(std::string_view append = "") const
+    [[nodiscard]] std::string Repr(std::string_view append = "") const
     {
         switch (Arity()) {
             case 0:
-                return std::format(
-                    "{}{}", m_atoms->arg0[m_atom_index.num]->Str(), append);
+                return std::format("{}{}", m_atoms->arg0[m_atom_index.num]->Str(), append);
             case 1:
-                return std::format("{}({}){}",
-                                   m_atoms->arg1[m_atom_index.num]->Str(),
-                                   m_arg1->Repr(), append);
+                return std::format("{}({}){}", m_atoms->arg1[m_atom_index.num]->Str(), m_arg1->Repr(), append);
             case 2:
-                return std::format("{}({};{}){}",
-                                   m_atoms->arg2[m_atom_index.num]->Str(),
-                                   m_arg1->Repr(), m_arg2->Repr(), append);
+                return std::format("{}({};{}){}", m_atoms->arg2[m_atom_index.num]->Str(), m_arg1->Repr(),
+                                   m_arg2->Repr(), append);
             default:
                 assert(false);
         }
@@ -416,16 +411,18 @@ public:
      * @brief Convert tree to JSON representation
      * @return JSON object representing the tree structure
      */
-    json ToJSON() const
+    [[nodiscard]] json ToJSON() const
     {
         json j;
         j["arity"] = m_atom_index.arity;
         j["num"] = m_atom_index.num;
         j["name"] = m_atoms->Get(m_atom_index.arity, m_atom_index.num)->Str();
-        if (Arity() > 0)
+        if (Arity() > 0) {
             j["arg1"] = m_arg1->ToJSON();
-        if (Arity() > 1)
+        }
+        if (Arity() > 1) {
             j["arg2"] = m_arg2->ToJSON();
+        }
         return j;
     }
 
@@ -434,49 +431,59 @@ public:
      * @param j JSON object containing tree structure
      * @return true if successful, false on error
      */
-    bool FromJSON(const json& j)
+    bool FromJSON(const json& j_root)
     {
         m_atom_index = AtomIndex{};
         m_arg1 = nullptr;
         m_arg2 = nullptr;
 
         // Parse arity
-        const auto j_arity = j.find("arity");
-        if (j_arity == j.end())
+        const auto j_arity = j_root.find("arity");
+        if (j_arity == j_root.end()) {
             return false;
-        if (not j_arity->is_number_unsigned())
+        }
+        if (not j_arity->is_number_unsigned()) {
             return false;
+        }
         m_atom_index.arity = j_arity->get<std::size_t>();
 
         // Parse function index
-        const auto j_num = j.find("num");
-        if (j_num == j.end())
+        const auto j_num = j_root.find("num");
+        if (j_num == j_root.end()) {
             return false;
-        if (not j_num->is_number_unsigned())
+        }
+        if (not j_num->is_number_unsigned()) {
             return false;
+        }
         m_atom_index.num = j_num->get<std::size_t>();
 
         // Parse children recursively
         if (Arity() > 0) {
             m_arg1 = std::make_unique<FuncNode>(m_atoms);
-            const auto j_arg1 = j.find("arg1");
-            if (j_arg1 == j.end())
+            const auto j_arg1 = j_root.find("arg1");
+            if (j_arg1 == j_root.end()) {
                 return false;
-            if (not j_arg1->is_object())
+            }
+            if (not j_arg1->is_object()) {
                 return false;
-            if (not m_arg1->FromJSON(*j_arg1))
+            }
+            if (not m_arg1->FromJSON(*j_arg1)) {
                 return false;
+            }
         }
 
         if (Arity() > 1) {
             m_arg2 = std::make_unique<FuncNode>(m_atoms);
-            const auto j_arg2 = j.find("arg2");
-            if (j_arg2 == j.end())
+            const auto j_arg2 = j_root.find("arg2");
+            if (j_arg2 == j_root.end()) {
                 return false;
-            if (not j_arg2->is_object())
+            }
+            if (not j_arg2->is_object()) {
                 return false;
-            if (not m_arg2->FromJSON(*j_arg2))
+            }
+            if (not m_arg2->FromJSON(*j_arg2)) {
                 return false;
+            }
         }
 
         return true;
@@ -490,12 +497,11 @@ public:
      * 
      * Creates a tree of specified depth with default functions.
      */
-    bool InitDepth(const std::size_t max_depth,
-                   const std::size_t current_depth = 0)
+    bool InitDepth(const std::size_t max_depth, const std::size_t current_depth = 0)
     {
         assert(current_depth <= max_depth);
         m_arg2 = nullptr;
-        
+
         if (current_depth == max_depth) {
             // Leaf node (nullary function)
             m_arg1 = nullptr;
@@ -521,25 +527,25 @@ public:
      * Enumerates all possible trees in lexicographic order.
      * Skips constant or symmetric trees based on template parameters.
      */
-    bool Iterate(const std::size_t max_depth,
-                 const std::size_t current_depth = 0)
+    bool Iterate(const std::size_t max_depth, const std::size_t current_depth = 0)
     {
         bool keep_iterate = true;
         while (keep_iterate) {
-            if (not IterateRaw(max_depth, current_depth))
+            if (not IterateRaw(max_depth, current_depth)) {
                 return false;
+            }
             keep_iterate = ((Arity() != 0) and SKIP_CONSTANT and Constant());
         }
         ClearCalculated();
         return true;
     }
 
-    bool IterateArity0(const std::size_t max_depth,
-                       const std::size_t next_depth)
+    bool IterateArity0(const std::size_t max_depth, const std::size_t next_depth)
     {
         if (LastArityFunc()) {
-            if (next_depth > max_depth)
+            if (next_depth > max_depth) {
                 return false;
+            }
             NextArity1();
         }
         else {
@@ -548,14 +554,12 @@ public:
         return true;
     }
 
-    bool IterateArity1(const std::size_t max_depth,
-                       const std::size_t next_depth)
+    bool IterateArity1(const std::size_t max_depth, const std::size_t next_depth)
     {
         bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth);
 
         if (SKIP_CONSTANT) {
-            if (arg1_iterated and (m_arg1->Arity() == 0) and
-                (m_arg1->Constant())) {
+            if (arg1_iterated and (m_arg1->Arity() == 0) and (m_arg1->Constant())) {
                 arg1_iterated = false;
             }
         }
@@ -573,44 +577,50 @@ public:
         return true;
     }
 
-    bool IterateArity2(const std::size_t max_depth,
-                       const std::size_t next_depth)
+    bool IterateArity2_CheckConstant(bool arg1_iterated)
     {
-        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth);
-
         if (SKIP_CONSTANT) {
-            if (arg1_iterated and (m_arg1->Arity() == 0) and
-                (m_arg1->Constant()) and (m_arg2->Arity() == 0) and
+            if (arg1_iterated and (m_arg1->Arity() == 0) and (m_arg1->Constant()) and (m_arg2->Arity() == 0) and
                 (m_arg2->Constant())) {
-                arg1_iterated = false;
+                return false;
             }
         }
+        return true;
+    }
 
+    bool IterateArity2_CheckSymmetric(bool arg1_iterated)
+    {
         if (SKIP_SYMMETRIC) {
-            if (arg1_iterated and
-                m_atoms->arg2[m_atom_index.num]->Commutative()) {
+            if (arg1_iterated and m_atoms->arg2[m_atom_index.num]->Commutative()) {
                 if (m_atoms->arg2[m_atom_index.num]->Idempotent()) {
                     if (m_arg1->SerialNumber() >= m_arg2->SerialNumber()) {
-                        arg1_iterated = false;
+                        return false;
                     }
                 }
                 else {
                     if (m_arg1->SerialNumber() > m_arg2->SerialNumber()) {
-                        arg1_iterated = false;
+                        return false;
                     }
                 }
             }
         }
+        return true;
+    }
+
+    bool IterateArity2(const std::size_t max_depth, const std::size_t next_depth)
+    {
+        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth);
+
+        arg1_iterated = arg1_iterated and IterateArity2_CheckConstant(arg1_iterated);
+        arg1_iterated = arg1_iterated and IterateArity2_CheckSymmetric(arg1_iterated);
 
         if (not arg1_iterated) {
             if (not m_arg2->Iterate(max_depth, next_depth)) {
                 if (LastArityFunc()) {
                     return false;
                 }
-                else {
-                    NextArity2();
-                    m_arg2->InitDepth(max_depth, next_depth);
-                }
+                NextArity2();
+                m_arg2->InitDepth(max_depth, next_depth);
             }
             else {
                 m_arg1 = std::make_unique<FuncNode>(m_atoms);
@@ -619,8 +629,7 @@ public:
         return true;
     }
 
-    bool IterateRaw(const std::size_t max_depth,
-                    const std::size_t current_depth)
+    bool IterateRaw(const std::size_t max_depth, const std::size_t current_depth)
     {
         bool result = false;
         const auto next_depth = current_depth + 1;
@@ -645,16 +654,16 @@ public:
         return result;
     }
 
-private:
-    AtomFuncs_t* m_atoms = nullptr;      ///< Reference to atomic function library
-    AtomIndex m_atom_index;              ///< Index of this node's function
+   private:
+    AtomFuncs_t* m_atoms = nullptr;  ///< Reference to atomic function library
+    AtomIndex m_atom_index;          ///< Index of this node's function
 
     std::unique_ptr<FuncNode> m_arg1 = nullptr;  ///< First child (for arity >= 1)
     std::unique_ptr<FuncNode> m_arg2 = nullptr;  ///< Second child (for arity = 2)
 
     FuncValues_t m_values;
 
-    bool LastArityFunc() const
+    [[nodiscard]] bool LastArityFunc() const
     {
         switch (Arity()) {
             case 0:

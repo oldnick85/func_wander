@@ -1,10 +1,18 @@
 #include <argh.h>
+#include <array>
+#include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <print>
+#include <sstream>
+#include <string>
+#include <thread>
 
 #include <func_node.h>
 #include <search_task.h>
@@ -12,13 +20,17 @@
 #include "atom_samples.h"
 #include "target_sample.h"
 
-using namespace fw;
+using fw::AtomFuncs;
+using fw::SearchTask;
+using fw::Settings;
 
+namespace
+{
 std::atomic_bool g_stop = false;
 Settings g_settings;
 std::string g_status;
 
-void signalHandler(int signal)
+void SignalHandler(int signal)
 {
     std::println("got signal {}", signal);
     if (signal == SIGINT) {
@@ -31,28 +43,40 @@ void MainLoop()
 {
     constexpr std::size_t MAX_CONSTANT = 256;
     AtomFuncs<Value_t> atoms;
-    atoms.Add(new AF_ARG_X{});
+    auto af_x = std::make_unique<AF_ARG_X>();
+    atoms.Add(af_x.get());
+    std::array<std::unique_ptr<AF_CONST>, MAX_CONSTANT> af_c;
     for (std::size_t val = 1; val <= MAX_CONSTANT; ++val) {
-        atoms.Add(new AF_CONST{static_cast<Value_t>(val)});
+        af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(val));
+        atoms.Add(af_c[val].get());
     }
     //atoms.Add(new AF_FW1{});
     //atoms.Add(new AF_FW2{});
-    atoms.Add(new AF_NOT{});
-    atoms.Add(new AF_BITCOUNT{});
-    atoms.Add(new AF_SUM{});
-    atoms.Add(new AF_SUB{});
-    atoms.Add(new AF_AND{});
-    atoms.Add(new AF_OR{});
-    atoms.Add(new AF_XOR{});
-    atoms.Add(new AF_SHR{});
-    atoms.Add(new AF_SHL{});
+    auto af_not = std::make_unique<AF_NOT>();
+    atoms.Add(af_not.get());
+    auto af_bc = std::make_unique<AF_BITCOUNT>();
+    atoms.Add(af_bc.get());
+    auto af_sum = std::make_unique<AF_SUM>();
+    atoms.Add(af_sum.get());
+    auto af_sub = std::make_unique<AF_SUB>();
+    atoms.Add(af_sub.get());
+    auto af_and = std::make_unique<AF_AND>();
+    atoms.Add(af_and.get());
+    auto af_or = std::make_unique<AF_OR>();
+    atoms.Add(af_or.get());
+    auto af_xor = std::make_unique<AF_XOR>();
+    atoms.Add(af_xor.get());
+    auto af_shr = std::make_unique<AF_SHR>();
+    atoms.Add(af_shr.get());
+    auto af_shl = std::make_unique<AF_SHL>();
+    atoms.Add(af_shl.get());
 
     MyTarget target;
 
     SearchTask<Value_t, true, true> task{g_settings, &atoms, &target};
 
     if (not g_settings.save_file.empty()) {
-        std::ifstream file(g_settings.save_file);
+        const std::ifstream file(g_settings.save_file);
         if (file) {
 
             std::ostringstream buffer;
@@ -60,8 +84,7 @@ void MainLoop()
             const auto task_json = buffer.str();
 
             if (not task.FromJSON(task_json)) {
-                std::println("Failed to parse JSON from file: {}",
-                             g_settings.save_file);
+                std::println("Failed to parse JSON from file: {}", g_settings.save_file);
                 return;
             }
             std::println("Loaded JSON from file: {}", g_settings.save_file);
@@ -74,7 +97,8 @@ void MainLoop()
     task.Run();
 
     while (not g_stop) {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+        constexpr auto PauseOutput = std::chrono::seconds(10);
+        std::this_thread::sleep_for(PauseOutput);
         if (task.Done()) {
             g_stop = true;
         }
@@ -101,6 +125,8 @@ void MainLoop()
     g_status = task.Status();
 }
 
+}  // namespace
+
 int main(int argc, char* argv[])
 {
 
@@ -122,10 +148,15 @@ int main(int argc, char* argv[])
         g_settings.max_best = std::stoi(cmdl("max-best").str());
     }
 
-    std::signal(SIGINT, signalHandler);
+    auto previous_handler = std::signal(SIGINT, SignalHandler);
+    if (previous_handler == SIG_ERR) {
+        std::println("Failed to set signal handler");
+        return EXIT_FAILURE;
+    }
+
     MainLoop();
 
     std::println("{}", g_status);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
