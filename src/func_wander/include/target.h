@@ -19,7 +19,7 @@ namespace fw
 template <typename FuncValue_t>
 class Target
 {
-public:
+   public:
     /// Vector type for function values
     using FuncValues_t = std::vector<FuncValue_t>;
 
@@ -37,8 +37,7 @@ public:
      * @param values Output values from candidate function
      * @return RangeSet of indices where values match target
      */
-    [[nodiscard]] virtual RangeSet<std::size_t> MatchPositions(
-        const FuncValues_t& values) const = 0;
+    [[nodiscard]] virtual RangeSet<std::size_t> MatchPositions(const FuncValues_t& values) const = 0;
 
     /**
      * @brief Get the target function values

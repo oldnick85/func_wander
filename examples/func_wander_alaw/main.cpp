@@ -45,7 +45,7 @@ void MainLoop()
     AtomFuncs<Value_t> atoms;
     auto af_x = std::make_unique<AF_ARG_X>();
     atoms.Add(af_x.get());
-    std::array<std::unique_ptr<AF_CONST>, MAX_CONSTANT> af_c;
+    std::array<std::unique_ptr<AF_CONST>, MAX_CONSTANT + 1> af_c;
     for (std::size_t val = 1; val <= MAX_CONSTANT; ++val) {
         af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(val));
         atoms.Add(af_c[val].get());
