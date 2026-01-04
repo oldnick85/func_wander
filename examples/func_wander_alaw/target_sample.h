@@ -40,7 +40,7 @@ class MyTarget : public Target<Value_t>
     MyTarget()
     {
         m_values.clear();
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
+        for (std::size_t i = 0; i < VALUES_COUNT; ++i) {
             // NOLINTNEXTLINE(readability-magic-numbers)
             const auto a = (static_cast<uint8_t>(i - 128)) ^ 0x55;
             auto l = static_cast<Value_t>(alaw2lpcm[a]);
@@ -51,7 +51,7 @@ class MyTarget : public Target<Value_t>
     [[nodiscard]] Distance Compare(const FuncValues_t& values) const override
     {
         Distance dist{};
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
+        for (std::size_t i = VALUE_FIRST; i <= VALUE_LAST; ++i) {
             if (values[i] != m_values[i]) {
                 ++dist;
             }
@@ -62,7 +62,7 @@ class MyTarget : public Target<Value_t>
     [[nodiscard]] RangeSet<std::size_t> MatchPositions(const FuncValues_t& values) const override
     {
         RangeSet<std::size_t> rset;
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
+        for (std::size_t i = VALUE_FIRST; i <= VALUE_LAST; ++i) {
             if (values[i] == m_values[i]) {
                 rset.Add(i);
             }

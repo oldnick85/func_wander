@@ -50,8 +50,10 @@ void MainLoop()
         af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(val));
         atoms.Add(af_c[val].get());
     }
-    //atoms.Add(new AF_FW1{});
-    //atoms.Add(new AF_FW2{});
+    //auto af_fw1 = std::make_unique<AF_FW1>();
+    //atoms.Add(af_fw1.get());
+    //auto af_fw2 = std::make_unique<AF_FW2>();
+    //atoms.Add(af_fw2.get());
     auto af_not = std::make_unique<AF_NOT>();
     atoms.Add(af_not.get());
     auto af_bc = std::make_unique<AF_BITCOUNT>();
