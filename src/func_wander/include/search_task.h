@@ -322,9 +322,12 @@ class SearchTask
         const float c_per_sec = static_cast<float>(m_count) * 1000.0F / d;
         auto status = std::format("iteration {}({:3}/{:3}): {} ({}%)\n{} iterations per second\n", m_count, float(snum),
                                   float(max_sn), m_fn.Repr(), done_percent, c_per_sec);
+
+        status += std::format("|  dist  | lvl | {:48}| coincidences\n", "function");
         for (auto& best : m_best) {
-            status += std::format("{}({}): {} <{}>\n", m_target->Compare(best.Calculate()), best.CurrentMaxLevel(),
-                                  best.Repr(), m_target->MatchPositions(best.Calculate()).Str());
+            status +=
+                std::format("| {:6} | {:3} | {:48}| {} \n", m_target->Compare(best.Calculate()), best.CurrentMaxLevel(),
+                            best.Repr(), m_target->MatchPositions(best.Calculate()).Str());
         }
         return status;
     }
