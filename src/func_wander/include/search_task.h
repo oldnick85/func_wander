@@ -261,13 +261,6 @@ class SearchTask
                 return false;
             }
 
-            //for (auto j_best_it = j_best->begin(); j_best_it != j_best->end(); ++j_best_it) {
-            //    m_best.emplace_back(m_atoms);
-            //    if (not m_best.back().FromJSON(*j_best_it)) {
-            //        return false;
-            //    }
-            //}
-
             for (auto& j_best_it : *j_best) {
                 m_best.emplace_back(m_atoms);
                 if (not m_best.back().FromJSON(j_best_it)) {

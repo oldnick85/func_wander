@@ -9,6 +9,13 @@
 namespace fw
 {
 
+template <typename Tnum>
+struct Characteristics
+{
+    Tnum min;
+    Tnum max;
+};
+
 /**
  * @defgroup Atoms Atomic Functions
  * @brief Base classes for atomic functions used in function synthesis
@@ -55,6 +62,8 @@ class AtomFunc0 : public AtomFuncBase
      */
     [[nodiscard]] virtual const FuncValues_t& Calculate() const = 0;
 
+    [[nodiscard]] virtual const Characteristics<FuncValue_t>& Chars() const = 0;
+
     /**
      * @brief Check if function is constant
      * @return true if the function always returns the same value
@@ -83,6 +92,8 @@ class AtomFunc1 : public AtomFuncBase
      * @return Vector of resulting values
      */
     [[nodiscard]] virtual FuncValues_t Calculate(const FuncValues_t& arg) const = 0;
+
+    [[nodiscard]] virtual bool CheckChars(const Characteristics<FuncValue_t>& arg_chars) const = 0;
 
     /**
      * @brief Check if function is involutive (self-inverse)
@@ -119,6 +130,9 @@ class AtomFunc2 : public AtomFuncBase
      * @return Vector of resulting values
      */
     [[nodiscard]] virtual FuncValues_t Calculate(const FuncValues_t& arg1, const FuncValues_t& arg2) const = 0;
+
+    [[nodiscard]] virtual bool CheckChars(const Characteristics<FuncValue_t>& arg1_chars,
+                                          const Characteristics<FuncValue_t>& arg2_chars) const = 0;
 
     /**
      * @brief Check if function is commutative

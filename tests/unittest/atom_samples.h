@@ -7,6 +7,7 @@
 using fw::AtomFunc0;
 using fw::AtomFunc1;
 using fw::AtomFunc2;
+using fw::Characteristics;
 
 constexpr std::size_t VALUES_RANGE = 256;
 
@@ -19,11 +20,15 @@ class AF_CONST : public AtomFunc0<uint16_t>
         for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             m_values.push_back(m_val);
         }
+        m_chars.min = m_val;
+        m_chars.max = m_val;
     }
 
     ~AF_CONST() override = default;
 
     [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<uint16_t>& Chars() const override { return m_chars; }
 
     [[nodiscard]] bool Constant() const override { return true; }
 
@@ -32,6 +37,7 @@ class AF_CONST : public AtomFunc0<uint16_t>
    private:
     uint16_t m_val = 0;
     FuncValues_t m_values;
+    Characteristics<uint16_t> m_chars;
 };
 
 class AF_ARG_X : public AtomFunc0<uint16_t>
@@ -43,11 +49,15 @@ class AF_ARG_X : public AtomFunc0<uint16_t>
         for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             m_values.push_back(i);
         }
+        m_chars.min = 0;
+        m_chars.max = VALUES_RANGE - 1;
     }
 
     ~AF_ARG_X() override = default;
 
     [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<uint16_t>& Chars() const override { return m_chars; }
 
     [[nodiscard]] bool Constant() const override { return false; }
 
@@ -55,6 +65,7 @@ class AF_ARG_X : public AtomFunc0<uint16_t>
 
    private:
     FuncValues_t m_values;
+    Characteristics<uint16_t> m_chars;
 };
 
 class AF_NOT : public AtomFunc1<uint16_t>
@@ -71,6 +82,11 @@ class AF_NOT : public AtomFunc1<uint16_t>
             res.push_back(~arg[i]);
         }
         return res;
+    }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg_chars) const override
+    {
+        return true;
     }
 
     [[nodiscard]] [[nodiscard]] bool Involutive() const override { return true; }
@@ -93,6 +109,11 @@ class AF_BITCOUNT : public AtomFunc1<uint16_t>
             res.push_back(std::bitset<16>{arg[i]}.count());
         }
         return res;
+    }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg_chars) const override
+    {
+        return true;
     }
 
     [[nodiscard]] bool Involutive() const override { return true; }
@@ -118,6 +139,12 @@ class AF_SUM : public AtomFunc2<uint16_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
+    }
+
     [[nodiscard]] bool Commutative() const override { return true; }
     [[nodiscard]] bool Idempotent() const override { return false; }
 
@@ -139,6 +166,12 @@ class AF_AND : public AtomFunc2<uint16_t>
             res.push_back(arg1[i] & arg2[i]);
         }
         return res;
+    }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
     }
 
     [[nodiscard]] bool Commutative() const override { return true; }
@@ -163,6 +196,12 @@ class AF_OR : public AtomFunc2<uint16_t>
             res.push_back(arg1[i] | arg2[i]);
         }
         return res;
+    }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
     }
 
     [[nodiscard]] bool Commutative() const override { return true; }

@@ -7,6 +7,7 @@
 using fw::AtomFunc0;
 using fw::AtomFunc1;
 using fw::AtomFunc2;
+using fw::Characteristics;
 
 using Value_t = int16_t;
 
@@ -23,11 +24,15 @@ class AF_CONST : public AtomFunc0<Value_t>
         for (Value_t i = {}; std::cmp_less(i, VALUES_COUNT); ++i) {
             m_values.push_back(m_val);
         }
+        m_chars.min = val;
+        m_chars.max = val;
     }
 
     ~AF_CONST() override = default;
 
     [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<Value_t>& Chars() const override { return m_chars; }
 
     [[nodiscard]] bool Constant() const override { return true; }
 
@@ -36,6 +41,7 @@ class AF_CONST : public AtomFunc0<Value_t>
    private:
     Value_t m_val = 0;
     FuncValues_t m_values;
+    Characteristics<Value_t> m_chars;
 };
 
 class AF_ARG_X : public AtomFunc0<Value_t>
@@ -47,11 +53,15 @@ class AF_ARG_X : public AtomFunc0<Value_t>
         for (Value_t i = {}; std::cmp_less(i, VALUES_COUNT); ++i) {
             m_values.push_back(i);
         }
+        m_chars.min = Value_t{};
+        m_chars.max = VALUES_COUNT - 1;
     }
 
     ~AF_ARG_X() override = default;
 
     [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<Value_t>& Chars() const override { return m_chars; }
 
     [[nodiscard]] bool Constant() const override { return false; }
 
@@ -59,6 +69,7 @@ class AF_ARG_X : public AtomFunc0<Value_t>
 
    private:
     FuncValues_t m_values;
+    Characteristics<Value_t> m_chars;
 };
 
 class AF_FW1 : public AtomFunc1<Value_t>
@@ -122,6 +133,11 @@ class AF_NOT : public AtomFunc1<Value_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    {
+        return true;
+    };
+
     [[nodiscard]] bool Involutive() const override { return true; }
     [[nodiscard]] bool Argument() const override { return false; }
 
@@ -143,6 +159,11 @@ class AF_BITCOUNT : public AtomFunc1<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    {
+        return true;
+    };
 
     [[nodiscard]] bool Involutive() const override { return true; }
     [[nodiscard]] bool Argument() const override { return false; }
@@ -166,6 +187,11 @@ class AF_BITCLZ : public AtomFunc1<Value_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    {
+        return true;
+    };
+
     [[nodiscard]] bool Involutive() const override { return true; }
     [[nodiscard]] bool Argument() const override { return false; }
 
@@ -188,6 +214,12 @@ class AF_SUM : public AtomFunc2<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        return true;
+    };
 
     [[nodiscard]] bool Commutative() const override { return true; }
 
@@ -213,6 +245,12 @@ class AF_SUB : public AtomFunc2<Value_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        return true;
+    };
+
     [[nodiscard]] bool Commutative() const override { return false; }
 
     [[nodiscard]] bool Idempotent() const override { return false; }
@@ -236,6 +274,12 @@ class AF_AND : public AtomFunc2<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        return true;
+    };
 
     [[nodiscard]] bool Commutative() const override { return true; }
 
@@ -261,6 +305,12 @@ class AF_OR : public AtomFunc2<Value_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        return true;
+    };
+
     [[nodiscard]] bool Commutative() const override { return true; }
 
     [[nodiscard]] bool Idempotent() const override { return true; }
@@ -284,6 +334,12 @@ class AF_XOR : public AtomFunc2<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        return true;
+    };
 
     [[nodiscard]] bool Commutative() const override { return true; }
 
@@ -309,6 +365,15 @@ class AF_SHR : public AtomFunc2<Value_t>
         return res;
     }
 
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        if (arg2_chars.min >= 32) {
+            return false;
+        }
+        return true;
+    };
+
     [[nodiscard]] bool Commutative() const override { return false; }
 
     [[nodiscard]] bool Idempotent() const override { return false; }
@@ -332,6 +397,15 @@ class AF_SHL : public AtomFunc2<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<Value_t>& arg2_chars) const override
+    {
+        if (arg2_chars.min >= 32) {
+            return false;
+        }
+        return true;
+    };
 
     [[nodiscard]] bool Commutative() const override { return false; }
 

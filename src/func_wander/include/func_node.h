@@ -363,8 +363,17 @@ class FuncNode
                 default:
                     break;
             }
+            auto result = std::ranges::minmax_element(m_values);
+            m_ch.min = *result.min;
+            m_ch.max = *result.max;
         }
         return m_values;
+    }
+
+    const Characteristics<FuncValue_t>& Chars() const
+    {
+        assert(not m_values.empty());
+        return m_ch;
     }
 
     /**
@@ -534,9 +543,36 @@ class FuncNode
             if (not IterateRaw(max_depth, current_depth)) {
                 return false;
             }
-            keep_iterate = ((Arity() != 0) and SKIP_CONSTANT and Constant());
+
+            ClearCalculated();
+
+            if (Arity() == 0) {
+                keep_iterate = false;
+            }
+            else {
+                keep_iterate = SKIP_CONSTANT and Constant();
+                if (not keep_iterate) {
+                    Calculate(true);
+                    if (Chars().min == Chars().max) {
+                        keep_iterate = true;
+                    }
+                }
+            }
+
+            //if (Arity() == 0) {
+            //    keep_iterate = false;
+            //}
+            //else {
+            //    keep_iterate = (SKIP_CONSTANT and Constant());
+            //    if (not keep_iterate) {
+            //        Calculate(true);
+            //        if (Chars().min == Chars().max) {
+            //            keep_iterate = true;
+            //        }
+            //    }
+            //}
         }
-        ClearCalculated();
+
         return true;
     }
 
@@ -662,6 +698,7 @@ class FuncNode
     std::unique_ptr<FuncNode> m_arg2 = nullptr;  ///< Second child (for arity = 2)
 
     FuncValues_t m_values;
+    Characteristics<FuncValue_t> m_ch;
 
     [[nodiscard]] bool LastArityFunc() const
     {
