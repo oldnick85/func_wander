@@ -105,12 +105,15 @@ TEST(FuncIterator, SerialNumber)
     auto snum = fnc.SerialNumber();
     ASSERT_EQ(snum, 0);
     std::size_t snum_old = snum;
-    //std::size_t snum_etalon = 0;
+    std::size_t snum_etalon = 0;
     while (fnc.Iterate(2)) {
-        //++snum_etalon;
+        ++snum_etalon;
         snum = fnc.SerialNumber();
-        //if (snum_etalon == 839)
-        //printf("%s %zu %zu\n", fnc.Repr().c_str(), snum, snum_etalon);
+        //if (snum_etalon % 10'000'000 == 0) {
+        //    std::println("{:60} {:12} {:12} {:12}", fnc.Repr(), snum, snum_etalon,
+        //                 fnc.MaxSerialNumber(fnc.CurrentMaxLevel()));
+        //}
+        ASSERT_EQ(snum, snum_etalon);
         ASSERT_GT(snum, snum_old);
         snum_old = snum;
     }
@@ -120,6 +123,7 @@ TEST(FuncIterator, SkipSymmetric)
 {
     AtomFuncs<uint16_t> atoms = MakeAtoms();
     FuncNode<uint16_t, false, true> fnc{&atoms};
+    ASSERT_EQ(fnc.SerialNumber(), 0);
     ASSERT_EQ(fnc.Repr(), "X");
     ASSERT_TRUE(fnc.Iterate(2));
     ASSERT_EQ(fnc.Repr(), "1");
@@ -212,7 +216,7 @@ TEST(SearchTask, JSON)
         const auto json_str = task.ToJSON().dump();
         SearchTask<uint16_t, true, true> new_task{settings, &atoms, &target};
         ASSERT_TRUE(new_task.FromJSON(json_str));
-        std::println("{}", new_task.Status());
+        //std::println("{}", new_task.Status());
         ASSERT_EQ(task, new_task);
     }
     ASSERT_TRUE(true);

@@ -299,7 +299,9 @@ class FuncNode
         }
 
         const auto max_prev = MaxSerialNumber(level - 1);
-        const auto m = (max_prev * max_prev * m_atoms->arg2.size()) + (max_prev * m_atoms->arg1.size()) + max_prev;
+        const auto max_prev_lvl = (level > 1) ? max_prev - MaxSerialNumber(level - 2) : max_prev;
+        const auto m =
+            (max_prev * max_prev_lvl * m_atoms->arg2.size()) + (max_prev_lvl * m_atoms->arg1.size()) + max_prev;
         return m;
     }
 
@@ -317,21 +319,20 @@ class FuncNode
 
         const auto level = CurrentMaxLevel();
         const auto max_prev = MaxSerialNumber(level - 1);
+        const auto max_prev2 = (level > 1) ? MaxSerialNumber(level - 2) : 0;
+        const auto max_prev_lvl = max_prev - max_prev2;
         std::size_t snum = max_prev;
 
         if (Arity() == 1) {
-            snum += max_prev * m_atom_index.num;
-            auto snum1 = m_arg1->SerialNumber();
-            if (m_arg1->CurrentMaxLevel() > 0) {
-                snum1 -= m_atoms->arg0.size();
-            }
+            snum += max_prev_lvl * m_atom_index.num;
+            auto snum1 = m_arg1->SerialNumber() - max_prev2;
             snum += snum1;
         }
         else if (Arity() == 2) {
-            snum += max_prev * m_atoms->arg1.size();
-            snum += max_prev * max_prev * m_atom_index.num;
+            snum += max_prev_lvl * m_atoms->arg1.size();
+            snum += max_prev * max_prev_lvl * m_atom_index.num;
             auto snum1 = m_arg1->SerialNumber();
-            auto snum2 = m_arg2->SerialNumber();
+            auto snum2 = m_arg2->SerialNumber() - max_prev2;
             snum += max_prev * snum2 + snum1;
         }
         return snum;
@@ -547,10 +548,14 @@ class FuncNode
             ClearCalculated();
 
             if (Arity() == 0) {
+                return true;
+            }
+
+            if (not SKIP_CONSTANT) {
                 keep_iterate = false;
             }
             else {
-                keep_iterate = SKIP_CONSTANT and Constant();
+                keep_iterate = Constant();
                 if (not keep_iterate) {
                     Calculate(true);
                     if (Chars().min == Chars().max) {
@@ -558,19 +563,6 @@ class FuncNode
                     }
                 }
             }
-
-            //if (Arity() == 0) {
-            //    keep_iterate = false;
-            //}
-            //else {
-            //    keep_iterate = (SKIP_CONSTANT and Constant());
-            //    if (not keep_iterate) {
-            //        Calculate(true);
-            //        if (Chars().min == Chars().max) {
-            //            keep_iterate = true;
-            //        }
-            //    }
-            //}
         }
 
         return true;
