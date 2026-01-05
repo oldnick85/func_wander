@@ -9,7 +9,7 @@ using fw::AtomFunc1;
 using fw::AtomFunc2;
 using fw::Characteristics;
 
-using Value_t = int16_t;
+using Value_t = uint16_t;
 
 constexpr Value_t VALUE_FIRST = 0;
 constexpr Value_t VALUE_LAST = 255;
@@ -72,6 +72,33 @@ class AF_ARG_X : public AtomFunc0<Value_t>
     Characteristics<Value_t> m_chars;
 };
 
+class AF_XOR8 : public AtomFunc1<Value_t>
+{
+   public:
+    ~AF_XOR8() override = default;
+
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg) const override
+    {
+        assert(arg.size() == VALUES_COUNT);
+        FuncValues_t res;
+        res.reserve(VALUES_COUNT);
+        for (std::size_t i = {}; i < VALUES_COUNT; ++i) {
+            res.push_back(static_cast<Value_t>(arg[i] ^ 0b1000'0000));
+        }
+        return res;
+    }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    {
+        return true;
+    };
+
+    [[nodiscard]] bool Involutive() const override { return true; }
+    [[nodiscard]] bool Argument() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "XOR8"; }
+};
+
 class AF_FW1 : public AtomFunc1<Value_t>
 {
    public:
@@ -87,6 +114,11 @@ class AF_FW1 : public AtomFunc1<Value_t>
         }
         return res;
     }
+
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    {
+        return true;
+    };
 
     [[nodiscard]] bool Involutive() const override { return true; }
     [[nodiscard]] bool Argument() const override { return false; }

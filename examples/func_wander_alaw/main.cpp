@@ -75,6 +75,8 @@ void MainLoop()
 
     MyTarget target;
 
+    std::println("{}", target.StrFull());
+
     SearchTask<Value_t, true, true> task{g_settings, &atoms, &target};
 
     if (not g_settings.save_file.empty()) {
