@@ -8,7 +8,7 @@ endif()
 
 # Find dependencies
 #find_package(Curses REQUIRED)
-find_package(argh REQUIRED)
+find_package(CLI11 REQUIRED)
 
 # Example application
 add_executable(func_wander_alaw
@@ -18,7 +18,7 @@ add_executable(func_wander_alaw
 # Link with dependencies
 target_link_libraries(func_wander_alaw PRIVATE
     func_wander::func_wander
-    argh
+    CLI11::CLI11
     )
     #${CURSES_LIBRARIES}
 

@@ -1,4 +1,33 @@
-#include <argh.h>
+/**
+ * @file main.cpp
+ * @brief A-law audio encoding function synthesizer using genetic programming
+ *
+ * This program performs automatic synthesis of A-law audio encoding function
+ * using evolutionary search over combinations of bitwise operations and constants.
+ * The target function approximates the standard A-law compression curve used
+ * in telecommunication systems for 8-bit audio encoding.
+ *
+ * The search space consists of:
+ * - Input variable (16-bit audio sample)
+ * - Bitwise operations (AND, OR, XOR, NOT, shifts)
+ * - Population count (bitcount)
+ * - Power-of-two constants (1..32768)
+ * - And other
+ *
+ * The algorithm uses depth-limited expression tree exploration with periodic
+ * state saving/loading via JSON serialization.
+ *
+ * @section features Features
+ * - Resume interrupted searches from saved state
+ * - Configurable search depth and population size
+ * - Real-time progress monitoring
+ * - Graceful shutdown on SIGINT
+ *
+ * @section usage Usage
+ * Run with --help to see command line options
+ */
+
+#include <CLI/CLI.hpp>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -29,6 +58,7 @@ namespace
 std::atomic_bool g_stop = false;
 Settings g_settings;
 std::string g_status;
+bool g_print_target = false;
 
 void SignalHandler(int signal)
 {
@@ -41,14 +71,33 @@ void SignalHandler(int signal)
 
 void MainLoop()
 {
-    constexpr std::size_t MAX_CONSTANT = 16;
+    constexpr std::size_t MAX_CONSTANTS = 4;
+    constexpr std::size_t MAX_CONSTANTS_2_POW = 16;
+
     AtomFuncs<Value_t> atoms;
     auto af_x = std::make_unique<AF_ARG_X>();
     atoms.Add(af_x.get());
-    std::array<std::unique_ptr<AF_CONST>, MAX_CONSTANT + 1> af_c;
-    for (std::size_t val = 1; val <= MAX_CONSTANT; ++val) {
-        af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(1 << (val - 1)));
-        atoms.Add(af_c[val].get());
+
+    std::vector<Value_t> consts;
+    for (std::size_t i = 1; i <= MAX_CONSTANTS_2_POW; ++i) {
+        const auto val = static_cast<Value_t>(1 << (i - 1));
+        if (std::ranges::contains(consts, val)) {
+            continue;
+        }
+        consts.push_back(val);
+    }
+    for (std::size_t i = 1; i <= MAX_CONSTANTS; ++i) {
+        const auto val = static_cast<Value_t>(i);
+        if (std::ranges::contains(consts, val)) {
+            continue;
+        }
+        consts.push_back(static_cast<Value_t>(val));
+    }
+
+    std::vector<std::unique_ptr<AF_CONST>> af_c;
+    for (const auto val : consts) {
+        af_c.push_back(std::make_unique<AF_CONST>(val));
+        atoms.Add(af_c.back().get());
     }
     //auto af_fw1 = std::make_unique<AF_FW1>();
     //atoms.Add(af_fw1.get());
@@ -81,7 +130,9 @@ void MainLoop()
 
     MyTarget target;
 
-    std::println("{}", target.StrFull());
+    if (g_print_target) {
+        std::println("{}", target.StrFull());
+    }
 
     SearchTask<Value_t, true, true> task{g_settings, &atoms, &target};
 
@@ -139,23 +190,24 @@ void MainLoop()
 
 int main(int argc, char* argv[])
 {
+    CLI::App app{"Synthesizes A-law audio encoding function using evolutionary bitwise operation search"};
 
-    argh::parser cmdl;
-    cmdl.add_param("savefile");
-    cmdl.add_param("max_depth");
-    cmdl.add_param("savefile");
-    cmdl.parse(argc, argv);
+    // Define command line options with descriptions
+    app.add_option("--savefile", g_settings.save_file, "Path to JSON file for saving/resuming search state")
+        ->check(CLI::ExistingFile);
+    app.add_option("--max-depth", g_settings.max_depth, "Maximum expression tree depth (positive integer)")
+        ->check(CLI::PositiveNumber);
+    app.add_option("--max-best", g_settings.max_best, "Number of top solutions to retain (positive integer)")
+        ->check(CLI::PositiveNumber);
+    app.add_flag("--print-target", g_print_target, "Print target function");
 
-    if (cmdl("savefile")) {
-        g_settings.save_file = cmdl("savefile").str();
+    try {
+        // Parse command line arguments
+        app.parse(argc, argv);
     }
-
-    if (cmdl("max-depth")) {
-        g_settings.max_depth = std::stoi(cmdl("max-depth").str());
-    }
-
-    if (cmdl("max-best")) {
-        g_settings.max_best = std::stoi(cmdl("max-best").str());
+    catch (const CLI::ParseError& e) {
+        // CLI11 automatically handles --help and error messages
+        return app.exit(e);
     }
 
     auto previous_handler = std::signal(SIGINT, SignalHandler);
