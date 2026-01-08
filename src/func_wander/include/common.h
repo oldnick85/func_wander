@@ -23,6 +23,59 @@ using Distance = std::size_t;
 /// @brief Type for serial numbers of function trees (supports very large numbers)
 using SerialNumber_t = __int128;
 
+template <class T>
+std::string format_with_si_prefix(T value)
+{
+    static constexpr std::array<const char*, 5> prefixes = {"", "k", "M", "G", "T"};
+
+    if (value == 0) {
+        return "0.000";
+    }
+
+    T divisor = 1;
+    int prefix_index = 0;
+
+    while (value >= static_cast<T>(1000) * divisor && prefix_index < 4) {
+        divisor *= 1000;
+        prefix_index++;
+    }
+
+    T integer_part = value / divisor;
+    T remainder = value % divisor;
+
+    // Calculate fractional part
+    T fractional = remainder * 1000 / divisor;
+    if (fractional > 999)
+        fractional = 999;
+
+    // Build result string
+    std::string result;
+
+    // Convert integer part to string
+    T temp_int = integer_part;
+    do {
+        char digit = '0' + static_cast<char>(temp_int % 10);
+        result.insert(result.begin(), digit);
+        temp_int /= 10;
+    } while (temp_int != 0);
+
+    // Add decimal point
+    result.push_back('.');
+
+    // Add three-digit fractional part
+    int frac_part = static_cast<int>(fractional);
+    char hundreds = '0' + (frac_part / 100);
+    char tens = '0' + ((frac_part % 100) / 10);
+    char units = '0' + (frac_part % 10);
+
+    result.push_back(hundreds);
+    result.push_back(tens);
+    result.push_back(units);
+
+    result += prefixes[prefix_index];
+    return result;
+}
+
 /**
  * @class RangeSet
  * @brief Efficient representation of sets using ranges

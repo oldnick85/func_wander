@@ -41,27 +41,33 @@ void SignalHandler(int signal)
 
 void MainLoop()
 {
-    constexpr std::size_t MAX_CONSTANT = 256;
+    constexpr std::size_t MAX_CONSTANT = 16;
     AtomFuncs<Value_t> atoms;
     auto af_x = std::make_unique<AF_ARG_X>();
     atoms.Add(af_x.get());
     std::array<std::unique_ptr<AF_CONST>, MAX_CONSTANT + 1> af_c;
     for (std::size_t val = 1; val <= MAX_CONSTANT; ++val) {
-        af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(val));
+        af_c[val] = std::make_unique<AF_CONST>(static_cast<Value_t>(1 << (val - 1)));
         atoms.Add(af_c[val].get());
     }
     //auto af_fw1 = std::make_unique<AF_FW1>();
     //atoms.Add(af_fw1.get());
     //auto af_fw2 = std::make_unique<AF_FW2>();
     //atoms.Add(af_fw2.get());
+
+    //auto af_f_0_31 = std::make_unique<AF_F_0_31>();
+    //atoms.Add(af_f_0_31.get());
+    //auto af_f_128_159 = std::make_unique<AF_F_128_159>();
+    //atoms.Add(af_f_128_159.get());
+
     auto af_not = std::make_unique<AF_NOT>();
     atoms.Add(af_not.get());
     auto af_bc = std::make_unique<AF_BITCOUNT>();
     atoms.Add(af_bc.get());
-    auto af_sum = std::make_unique<AF_SUM>();
-    atoms.Add(af_sum.get());
-    auto af_sub = std::make_unique<AF_SUB>();
-    atoms.Add(af_sub.get());
+    //auto af_sum = std::make_unique<AF_SUM>();
+    //atoms.Add(af_sum.get());
+    //auto af_sub = std::make_unique<AF_SUB>();
+    //atoms.Add(af_sub.get());
     auto af_and = std::make_unique<AF_AND>();
     atoms.Add(af_and.get());
     auto af_or = std::make_unique<AF_OR>();

@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
+#include "common.h"
 #include "func_node.h"
 #include "target.h"
 
@@ -309,12 +310,29 @@ class SearchTask
         const auto snum = m_fn.SerialNumber();
         const auto max_sn = m_fn.MaxSerialNumber(m_settings.max_depth);
         const float done_percent = (snum * 100.0F) / max_sn;
-        const auto d =
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_tm_start)
-                .count();
-        const float c_per_sec = static_cast<float>(m_count) * 1000.0F / d;
-        auto status = std::format("iteration {}({:3}/{:3}): {} ({}%)\n{} iterations per second\n", m_count, float(snum),
-                                  float(max_sn), m_fn.Repr(), done_percent, c_per_sec);
+
+        const auto elapsed = std::chrono::steady_clock::now() - m_tm_start;
+        const auto d = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+        const std::size_t c_per_sec = m_count * 1000 / d;
+
+        const auto sn_per_sec = snum * 1000 / d;
+        const auto remaining_sn = max_sn - snum;
+        const auto remaining = std::chrono::seconds(remaining_sn / sn_per_sec);
+
+        const auto remaining_h = std::chrono::duration_cast<std::chrono::hours>(remaining);
+        const auto remaining_m = std::chrono::duration_cast<std::chrono::minutes>(remaining % std::chrono::hours(1));
+        const auto remaining_s = std::chrono::duration_cast<std::chrono::seconds>(remaining % std::chrono::minutes(1));
+
+        const auto elapsed_h = std::chrono::duration_cast<std::chrono::hours>(elapsed);
+        const auto elapsed_m = std::chrono::duration_cast<std::chrono::minutes>(elapsed % std::chrono::hours(1));
+        const auto elapsed_s = std::chrono::duration_cast<std::chrono::seconds>(elapsed % std::chrono::minutes(1));
+
+        auto status = std::format(
+            "iteration {}; func sn {} from max {}; progress {}%; speed {} ips; elapsed: {}:{:02d}:{:02d}; remaining: "
+            "{}:{:02d}:{:02d}; function {}\n",
+            format_with_si_prefix(m_count), format_with_si_prefix(snum), format_with_si_prefix(max_sn), done_percent,
+            format_with_si_prefix(c_per_sec), elapsed_h.count(), elapsed_m.count(), elapsed_s.count(),
+            remaining_h.count(), remaining_m.count(), remaining_s.count(), m_fn.Repr());
 
         status += std::format("|  dist  | lvl | {:48}| coincidences\n", "function");
         for (auto& best : m_best) {

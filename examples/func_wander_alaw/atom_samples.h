@@ -72,31 +72,64 @@ class AF_ARG_X : public AtomFunc0<Value_t>
     Characteristics<Value_t> m_chars;
 };
 
-class AF_XOR8 : public AtomFunc1<Value_t>
+class AF_F_0_31 : public AtomFunc0<Value_t>
 {
    public:
-    ~AF_XOR8() override = default;
-
-    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg) const override
+    AF_F_0_31()
     {
-        assert(arg.size() == VALUES_COUNT);
-        FuncValues_t res;
-        res.reserve(VALUES_COUNT);
-        for (std::size_t i = {}; i < VALUES_COUNT; ++i) {
-            res.push_back(static_cast<Value_t>(arg[i] ^ 0b1000'0000));
+        m_values.reserve(VALUES_COUNT);
+        for (Value_t i = {}; std::cmp_less(i, VALUES_COUNT); ++i) {
+            const Value_t v = 32768 | (8 | (i << 4));
+            m_values.push_back(v);
         }
-        return res;
+        auto result = std::ranges::minmax_element(m_values);
+        m_chars.min = *result.min;
+        m_chars.max = *result.max;
     }
 
-    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<Value_t>& arg_chars) const override
+    ~AF_F_0_31() override = default;
+
+    [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<Value_t>& Chars() const override { return m_chars; }
+
+    [[nodiscard]] bool Constant() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "AF_F_0_31"; }
+
+   private:
+    FuncValues_t m_values;
+    Characteristics<Value_t> m_chars;
+};
+
+class AF_F_128_159 : public AtomFunc0<Value_t>
+{
+   public:
+    AF_F_128_159()
     {
-        return true;
-    };
+        m_values.reserve(VALUES_COUNT);
+        for (Value_t i = {}; std::cmp_less(i, VALUES_COUNT); ++i) {
+            const Value_t v = 8 | (2048 ^ (i << 4));
+            m_values.push_back(v);
+        }
+        auto result = std::ranges::minmax_element(m_values);
+        m_chars.min = *result.min;
+        m_chars.max = *result.max;
+    }
 
-    [[nodiscard]] bool Involutive() const override { return true; }
-    [[nodiscard]] bool Argument() const override { return false; }
+    ~AF_F_128_159() override = default;
 
-    [[nodiscard]] std::string Str() const override { return "XOR8"; }
+    [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
+
+    [[nodiscard]] const Characteristics<Value_t>& Chars() const override { return m_chars; }
+
+    [[nodiscard]] bool Constant() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "AF_F_128_159"; }
+
+   private:
+    FuncValues_t m_values;
+    Characteristics<Value_t> m_chars;
 };
 
 class AF_FW1 : public AtomFunc1<Value_t>
