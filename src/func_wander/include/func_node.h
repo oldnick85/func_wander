@@ -2,8 +2,10 @@
 
 #include <format>
 #include <memory>
-#include <nlohmann/json.hpp>
+#include <unordered_set>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 #include "atom.h"
@@ -238,6 +240,22 @@ class FuncNode
 
     /// @brief Get arity of this node (0, 1, or 2)
     [[nodiscard]] std::size_t Arity() const { return m_atom_index.arity; }
+
+    void UniqFunctionsSerialNumbers(std::unordered_set<SerialNumber_t, SerialNumberHash>& uniqs) const
+    {
+        switch (Arity()) {
+            case 0:
+                return;
+            case 1:
+                m_arg1->UniqFunctionsSerialNumbers(uniqs);
+                break;
+            case 2:
+                m_arg1->UniqFunctionsSerialNumbers(uniqs);
+                m_arg2->UniqFunctionsSerialNumbers(uniqs);
+                break;
+        }
+        uniqs.insert(SerialNumber());
+    }
 
     /// @brief Count total number of function nodes in the tree
     [[nodiscard]] std::size_t FunctionsCount() const

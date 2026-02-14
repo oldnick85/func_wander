@@ -23,6 +23,21 @@ using Distance = std::size_t;
 /// @brief Type for serial numbers of function trees (supports very large numbers)
 using SerialNumber_t = __int128;
 
+struct SerialNumberHash
+{
+    std::size_t operator()(__int128 x) const
+    {
+        uint64_t low = static_cast<uint64_t>(x);
+        uint64_t high = static_cast<uint64_t>(x >> 64);
+        return std::hash<uint64_t>{}(low) ^ (std::hash<uint64_t>{}(high) << 1);
+    }
+};
+
+struct SerialNumberEqual
+{
+    bool operator()(__int128 a, __int128 b) const { return a == b; }
+};
+
 template <class T>
 std::string format_with_si_prefix(T value)
 {

@@ -13,6 +13,7 @@
 using json = nlohmann::json;
 
 #include "common.h"
+#include "comparison.h"
 #include "func_node.h"
 #include "target.h"
 
@@ -106,7 +107,7 @@ class SearchTask
         if (m_best != other.m_best) {
             return false;
         }
-        if (m_dist_threshold != other.m_dist_threshold) {
+        if (m_suit_threshold != other.m_suit_threshold) {
             return false;
         }
         if (m_done != other.m_done) {
@@ -160,7 +161,10 @@ class SearchTask
         j["settings"]["max_depth"] = m_settings.max_depth;
         j["count"] = m_count;
         j["done"] = m_done.load();
-        j["dist_threshold"] = m_dist_threshold;
+        j["suit_threshold"]["distance"] = m_suit_threshold.distance();
+        j["suit_threshold"]["max_level"] = m_suit_threshold.max_level();
+        j["suit_threshold"]["functions_count"] = m_suit_threshold.functions_count();
+        j["suit_threshold"]["functions_unique"] = m_suit_threshold.functions_unique();
         j["current_fn"] = m_fn.ToJSON();
         j["best"] = json::array();
         for (const auto& best : m_best) {
@@ -234,14 +238,47 @@ class SearchTask
         }
         m_done = j_done->get<bool>();
 
-        const auto j_dist_threshold = j.find("dist_threshold");
-        if (j_dist_threshold == j.end()) {
+        const auto j_suit_threshold = j.find("suit_threshold");
+        if (j_suit_threshold == j.end()) {
             return false;
         }
-        if (not j_dist_threshold->is_number()) {
+        if (not j_suit_threshold->is_object()) {
             return false;
         }
-        m_dist_threshold = j_dist_threshold->get<std::size_t>();
+
+        const auto j_suit_threshold_distance = j_suit_threshold->find("distance");
+        if (j_suit_threshold_distance == j_suit_threshold->end()) {
+            return false;
+        }
+        if (not j_suit_threshold_distance->is_number()) {
+            return false;
+        }
+        const auto j_suit_threshold_max_level = j_suit_threshold->find("max_level");
+        if (j_suit_threshold_max_level == j_suit_threshold->end()) {
+            return false;
+        }
+        if (not j_suit_threshold_max_level->is_number()) {
+            return false;
+        }
+        const auto j_suit_threshold_functions_count = j_suit_threshold->find("functions_count");
+        if (j_suit_threshold_functions_count == j_suit_threshold->end()) {
+            return false;
+        }
+        if (not j_suit_threshold_functions_count->is_number()) {
+            return false;
+        }
+        const auto j_suit_threshold_functions_unique = j_suit_threshold->find("functions_unique");
+        if (j_suit_threshold_functions_unique == j_suit_threshold->end()) {
+            return false;
+        }
+        if (not j_suit_threshold_functions_unique->is_number()) {
+            return false;
+        }
+
+        m_suit_threshold = SuitabilityMetrics(j_suit_threshold_distance->get<std::size_t>(),
+                                              j_suit_threshold_max_level->get<std::size_t>(),
+                                              j_suit_threshold_functions_count->get<std::size_t>(),
+                                              j_suit_threshold_functions_unique->get<std::size_t>());
 
         const auto j_fn = j.find("current_fn");
         if (j_fn == j.end()) {
@@ -334,11 +371,12 @@ class SearchTask
             format_with_si_prefix(c_per_sec), elapsed_h.count(), elapsed_m.count(), elapsed_s.count(),
             remaining_h.count(), remaining_m.count(), remaining_s.count(), m_fn.Repr());
 
-        status += std::format("|  dist  | lvl | {:48}| coincidences\n", "function");
+        status += std::format("|  dist  | lvl | fnc | fnu | {:48}| coincidences\n", "function");
         for (auto& best : m_best) {
-            status +=
-                std::format("| {:6} | {:3} | {:48}| {} \n", m_target->Compare(best.Calculate()), best.CurrentMaxLevel(),
-                            best.Repr(), m_target->MatchPositions(best.Calculate()).Str());
+            const auto suit = CalcDist(best);
+            status += std::format("| {:6} | {:3} | {:3} | {:3} | {:48}| {} \n", suit.distance(), suit.max_level(),
+                                  suit.functions_count(), suit.functions_unique(), best.Repr(),
+                                  m_target->MatchPositions(best.Calculate()).Str());
         }
         return status;
     }
@@ -351,7 +389,7 @@ class SearchTask
     std::chrono::time_point<std::chrono::steady_clock> m_tm_start;  ///< ⏱️ Search start time
     std::size_t m_count = 0;                                        ///< 🔢 Number of iterations performed
     std::list<FN_t> m_best;                                         ///< 🏆 Best functions found (maintained in order)
-    std::size_t m_dist_threshold = 0;                               ///< 📊 Worst distance currently in best list
+    SuitabilityMetrics m_suit_threshold;                            ///< 📊 Worst distance currently in best list
     std::mutex m_mtx;                                               ///< 🔐 Mutex for thread-safe state access
     std::jthread m_thread;                                          ///< 🧵 Background search thread
     std::atomic_bool m_done = false;                                ///< ✅ Completion flag (atomic for thread safety)
@@ -366,11 +404,13 @@ class SearchTask
      * 
      * Weights can be adjusted based on preference for accuracy vs simplicity.
      */
-    std::size_t CalcDist(FN_t& fnc) const
+    SuitabilityMetrics CalcDist(FN_t& fnc) const
     {
         const auto fnc_calc = fnc.Calculate();
         const auto fnc_cmp = m_target->Compare(fnc_calc);
-        return (fnc_cmp * 10) + fnc.CurrentMaxLevel() + (fnc.FunctionsCount() * 2);
+        std::unordered_set<SerialNumber_t, SerialNumberHash> uniqs{};
+        fnc.UniqFunctionsSerialNumbers(uniqs);
+        return SuitabilityMetrics(fnc_cmp, fnc.CurrentMaxLevel(), fnc.FunctionsCount(), uniqs.size());
     }
 
     /**
@@ -397,7 +437,7 @@ class SearchTask
         const auto fnc_ranges = m_target->MatchPositions(fnc_calc);
         const auto new_dist = CalcDist(fnc);
         if (m_best.size() >= max_best) {
-            if (new_dist > m_dist_threshold) {
+            if (new_dist > m_suit_threshold) {
                 return;
             }
         }
@@ -435,7 +475,7 @@ class SearchTask
         }
 
         // Update threshold to worst distance in current best list
-        m_dist_threshold = CalcDist(m_best.back());
+        m_suit_threshold = CalcDist(m_best.back());
     }
 
     /**
