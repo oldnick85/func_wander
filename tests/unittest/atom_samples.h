@@ -4,31 +4,40 @@
 
 #include <atom.h>
 
-using namespace fw;
+using fw::AtomFunc0;
+using fw::AtomFunc1;
+using fw::AtomFunc2;
+using fw::Characteristics;
 
 constexpr std::size_t VALUES_RANGE = 256;
 
 class AF_CONST : public AtomFunc0<uint16_t>
 {
    public:
-    AF_CONST(uint16_t val) : m_val(val)
+    explicit AF_CONST(uint16_t val) : m_val(val)
     {
         m_values.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             m_values.push_back(m_val);
+        }
+        m_chars.min = m_val;
+        m_chars.max = m_val;
     }
 
-    virtual ~AF_CONST() = default;
+    ~AF_CONST() override = default;
 
-    virtual const FuncValues_t& Calculate() const { return m_values; }
+    [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
 
-    virtual bool Constant() const { return true; }
+    [[nodiscard]] const Characteristics<uint16_t>& Chars() const override { return m_chars; }
 
-    virtual std::string Str() const { return std::to_string(m_val); }
+    [[nodiscard]] bool Constant() const override { return true; }
+
+    [[nodiscard]] std::string Str() const override { return std::to_string(m_val); }
 
    private:
     uint16_t m_val = 0;
     FuncValues_t m_values;
+    Characteristics<uint16_t> m_chars;
 };
 
 class AF_ARG_X : public AtomFunc0<uint16_t>
@@ -37,131 +46,167 @@ class AF_ARG_X : public AtomFunc0<uint16_t>
     AF_ARG_X()
     {
         m_values.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             m_values.push_back(i);
+        }
+        m_chars.min = 0;
+        m_chars.max = VALUES_RANGE - 1;
     }
 
-    virtual ~AF_ARG_X() = default;
+    ~AF_ARG_X() override = default;
 
-    virtual const FuncValues_t& Calculate() const { return m_values; }
+    [[nodiscard]] const FuncValues_t& Calculate() const override { return m_values; }
 
-    virtual bool Constant() const { return false; }
+    [[nodiscard]] const Characteristics<uint16_t>& Chars() const override { return m_chars; }
 
-    virtual std::string Str() const { return "X"; }
+    [[nodiscard]] bool Constant() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "X"; }
 
    private:
     FuncValues_t m_values;
+    Characteristics<uint16_t> m_chars;
 };
 
 class AF_NOT : public AtomFunc1<uint16_t>
 {
    public:
-    virtual ~AF_NOT() = default;
+    ~AF_NOT() override = default;
 
-    virtual FuncValues_t Calculate(const FuncValues_t& arg) const
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg) const override
     {
         assert(arg.size() == VALUES_RANGE);
         FuncValues_t res;
         res.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             res.push_back(~arg[i]);
+        }
         return res;
     }
 
-    virtual bool Involutive() const { return true; }
-    virtual bool Argument() const { return false; }
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg_chars) const override
+    {
+        return true;
+    }
 
-    virtual std::string Str() const { return "NOT"; }
+    [[nodiscard]] [[nodiscard]] bool Involutive() const override { return true; }
+    [[nodiscard]] bool Argument() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "NOT"; }
 };
 
 class AF_BITCOUNT : public AtomFunc1<uint16_t>
 {
    public:
-    virtual ~AF_BITCOUNT() = default;
+    ~AF_BITCOUNT() override = default;
 
-    virtual FuncValues_t Calculate(const FuncValues_t& arg) const
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg) const override
     {
         assert(arg.size() == VALUES_RANGE);
         FuncValues_t res;
         res.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             res.push_back(std::bitset<16>{arg[i]}.count());
+        }
         return res;
     }
 
-    virtual bool Involutive() const { return true; }
-    virtual bool Argument() const { return false; }
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg_chars) const override
+    {
+        return true;
+    }
 
-    virtual std::string Str() const { return "BITCOUNT"; }
+    [[nodiscard]] bool Involutive() const override { return true; }
+    [[nodiscard]] bool Argument() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "BITCOUNT"; }
 };
 
 class AF_SUM : public AtomFunc2<uint16_t>
 {
    public:
-    virtual ~AF_SUM() = default;
+    ~AF_SUM() override = default;
 
-    virtual FuncValues_t Calculate(const FuncValues_t& arg1,
-                                   const FuncValues_t& arg2) const
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg1, const FuncValues_t& arg2) const override
     {
         assert(arg1.size() == VALUES_RANGE);
         assert(arg2.size() == VALUES_RANGE);
         FuncValues_t res;
         res.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             res.push_back(arg1[i] + arg2[i]);
+        }
         return res;
     }
 
-    virtual bool Commutative() const { return true; }
-    virtual bool Idempotent() const { return false; }
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
+    }
 
-    virtual std::string Str() const { return "SUM"; }
+    [[nodiscard]] bool Commutative() const override { return true; }
+    [[nodiscard]] bool Idempotent() const override { return false; }
+
+    [[nodiscard]] std::string Str() const override { return "SUM"; }
 };
 
 class AF_AND : public AtomFunc2<uint16_t>
 {
    public:
-    virtual ~AF_AND() = default;
+    ~AF_AND() override = default;
 
-    virtual FuncValues_t Calculate(const FuncValues_t& arg1,
-                                   const FuncValues_t& arg2) const
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg1, const FuncValues_t& arg2) const override
     {
         assert(arg1.size() == VALUES_RANGE);
         assert(arg2.size() == VALUES_RANGE);
         FuncValues_t res;
         res.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             res.push_back(arg1[i] & arg2[i]);
+        }
         return res;
     }
 
-    virtual bool Commutative() const { return true; }
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
+    }
 
-    virtual bool Idempotent() const { return true; }
+    [[nodiscard]] bool Commutative() const override { return true; }
 
-    virtual std::string Str() const { return "AND"; }
+    [[nodiscard]] bool Idempotent() const override { return true; }
+
+    [[nodiscard]] std::string Str() const override { return "AND"; }
 };
 
 class AF_OR : public AtomFunc2<uint16_t>
 {
    public:
-    virtual ~AF_OR() = default;
+    ~AF_OR() override = default;
 
-    virtual FuncValues_t Calculate(const FuncValues_t& arg1,
-                                   const FuncValues_t& arg2) const
+    [[nodiscard]] FuncValues_t Calculate(const FuncValues_t& arg1, const FuncValues_t& arg2) const override
     {
         assert(arg1.size() == VALUES_RANGE);
         assert(arg2.size() == VALUES_RANGE);
         FuncValues_t res;
         res.reserve(VALUES_RANGE);
-        for (std::size_t i = 0; i < VALUES_RANGE; ++i)
+        for (std::size_t i = 0; i < VALUES_RANGE; ++i) {
             res.push_back(arg1[i] | arg2[i]);
+        }
         return res;
     }
 
-    virtual bool Commutative() const { return true; }
+    [[nodiscard]] bool CheckChars([[maybe_unused]] const Characteristics<uint16_t>& arg1_chars,
+                                  [[maybe_unused]] const Characteristics<uint16_t>& arg2_chars) const override
+    {
+        return true;
+    }
 
-    virtual bool Idempotent() const { return true; }
+    [[nodiscard]] bool Commutative() const override { return true; }
 
-    virtual std::string Str() const { return "OR"; }
+    [[nodiscard]] bool Idempotent() const override { return true; }
+
+    [[nodiscard]] std::string Str() const override { return "OR"; }
 };
