@@ -15,6 +15,7 @@ using json = nlohmann::json;
 #include "common.h"
 #include "comparison.h"
 #include "func_node.h"
+#include "status.h"
 #include "target.h"
 
 namespace fw
@@ -38,9 +39,12 @@ struct Settings
         return ((save_file == other.save_file) and (max_best == other.max_best) and (max_depth == other.max_depth));
     }
 
-    std::string save_file;      ///< 📁 File path for automatic save/load of search state
-    std::size_t max_best = 32;  ///< 🏆 Maximum number of best functions to retain
-    std::size_t max_depth = 3;  ///< 🌳 Maximum depth of function trees to explore
+    std::string save_file;                ///< 📁 File path for automatic save/load of search state
+    std::size_t max_best = 32;            ///< 🏆 Maximum number of best functions to retain
+    std::size_t max_depth = 3;            ///< 🌳 Maximum depth of function trees to explore
+    bool http_enabled = false;            ///< 🌐 Enable/disable HTTP server for remote control
+    std::string http_host = "localhost";  ///< 🖧 Host address for HTTP server (default: localhost)
+    int http_port = 8080;                 ///< 🔌 Port for HTTP server (default: 8080)
 };
 
 /**
@@ -377,6 +381,34 @@ class SearchTask
             status += std::format("| {:6} | {:3} | {:3} | {:3} | {:48}| {} \n", suit.distance(), suit.max_level(),
                                   suit.functions_count(), suit.functions_unique(), best.Repr(),
                                   m_target->MatchPositions(best.Calculate()).Str());
+        }
+        return status;
+    }
+
+    status::Status GetStatus()
+    {
+        status::Status status;
+        const std::unique_lock lock{m_mtx};
+        status.snum = m_fn.SerialNumber();
+        status.max_sn = m_fn.MaxSerialNumber(m_settings.max_depth);
+        status.done_percent = (status.snum * 100.0F) / status.max_sn;
+
+        status.elapsed = std::chrono::steady_clock::now() - m_tm_start;
+        const auto d = std::chrono::duration_cast<std::chrono::milliseconds>(status.elapsed).count();
+        status.iterations_count = m_count;
+        status.iterations_per_sec = status.iterations_count * 1000 / d;
+        status.sn_per_sec = status.snum * 1000 / d;
+        const auto remaining_sn = status.max_sn - status.snum;
+        status.remaining = std::chrono::seconds(remaining_sn / status.sn_per_sec);
+        status.current_function = m_fn.Repr();
+
+        status.best_functions.reserve(m_best.size());
+        for (auto& best : m_best) {
+            status::BestFunc best_func;
+            best_func.function = best.Repr();
+            best_func.suit = CalcDist(best);
+            best_func.match_positions = m_target->MatchPositions(best.Calculate()).Str();
+            status.best_functions.push_back(best_func);
         }
         return status;
     }
