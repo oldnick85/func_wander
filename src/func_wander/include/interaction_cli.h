@@ -54,7 +54,7 @@ int MainLoop(const Settings& settings, AtomFuncs<TVal>& atoms, Target<TVal>& tar
     status::Status status;
 
     if (settings.http_enabled) {
-        interaction_http::Run(status, settings.http_host, settings.http_port);
+        interaction_http::Run(status, g_stop, settings.http_host, settings.http_port);
     }
 
     task.Run();

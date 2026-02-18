@@ -22,8 +22,8 @@ struct Status
     SerialNumber_t snum{};
     SerialNumber_t max_sn{};
     float done_percent{};
-    std::chrono::duration<int64_t, std::nano> elapsed;
-    std::chrono::duration<int64_t, std::nano> remaining;
+    std::chrono::duration<int64_t, std::nano> elapsed{};
+    std::chrono::duration<int64_t, std::nano> remaining{};
     std::size_t iterations_per_sec{};
     std::size_t sn_per_sec{};
     std::size_t iterations_count{};
