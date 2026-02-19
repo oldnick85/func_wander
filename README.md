@@ -21,6 +21,11 @@ Think of it as **function synthesis from examples**. Given a set of basic operat
 - 💾 **State persistence** via JSON serialization
 - 🎯 **Customizable targets** and distance metrics
 - 🧩 **Extensible atomic function** system
+- 🌐 **Built-in HTTP server** for remote monitoring and control
+  - Real-time status dashboard with auto-refresh
+  - Progress bar and performance metrics
+  - Table of best found functions
+  - Remote stop button to halt the search
 
 ## 🏗️ Architecture
 
@@ -32,11 +37,17 @@ Think of it as **function synthesis from examples**. Given a set of basic operat
 └─────────────────┘    └─────────────────┘    └─────────┬───────┘
                                                         │
                                                         ▼
-┌─────────────────┐                            ┌─────────────────┐
-│ Target          │                            │ Results         │
-│ Specification   │◀───────────────────────────│ & Ranking       │
-│ (Desired I/O)   │                            └─────────────────┘
-└─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Target          │    │ Results         │    │   HTTP Server   │
+│ Specification   │◀──▶│ & Ranking       │───▶│  (optional)     │
+└─────────────────┘    └─────────────────┘    └────────┬────────┘
+                                                       │
+                                                       ▼
+                                              ┌─────────────────────┐
+                                              │   Web Dashboard     │
+                                              │ (auto-refresh,      │
+                                              │  stop button, etc.) │
+                                              └─────────────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -69,6 +80,32 @@ cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
 
+## ⚙️ Configuration
+
+The Settings struct controls the behaviour of the search and the optional HTTP server:
+
+| Field        | Type        | Default     | Description                                          |
+|--------------|-------------|-------------|------------------------------------------------------|
+| save_file    | std::string | ""          | Path for automatic save/load of search state (JSON). |
+| max_best     | std::size_t | 32          | Maximum number of best functions to retain.          |
+| max_depth    | std::size_t | 3           | Maximum depth of function trees to explore.          |
+| http_enabled | bool	     | false       | Enable/disable the embedded HTTP server.             |
+| http_host    | std::string | "localhost" | Host address to bind to.                             |
+| http_port    | int         | 8080        | Port number for the HTTP server.                     |
+
+## 🌐 Web Dashboard
+
+When http_enabled is true, the server starts automatically. The dashboard provides:
+
+ - Auto‑refreshing status page (every 10 seconds)
+ - Progress bar showing completion percentage
+ - Key metrics: elapsed/remaining time, iterations per second, total iterations
+ - Current function being evaluated
+ - Table of the best functions found so far (sorted by distance)
+ - Stop button – sends a POST request to /stop to gracefully terminate the search
+
+The page uses simple HTML/CSS/JavaScript and communicates with the backend via REST endpoints (/status JSON endpoint is also available for programmatic access).
+
 ## ⚠️ Limitations
 
  - Curse of Dimensionality 📊: Higher-dimensional problems require exponentially more computation
@@ -76,8 +113,7 @@ cmake --build .
  - No Optimality Guarantee 🎯: May not find simplest/most elegant solution
  - Memory Intensive 🐘: Large search spaces require significant memory
 
-
-📚 Documentation
+## 📚 Documentation
 
 For detailed API documentation, run:
 ```bash
