@@ -306,52 +306,161 @@ class FuncNode
     }
 
     /**
-     * @brief Calculate maximum serial number for trees of given depth
-     * @param level Maximum depth of trees
-     * @return Maximum possible serial number for trees of this depth
-     */
+ * @brief Maximum number of distinct trees with depth up to given level.
+ *
+ * Recursively computes the total count of trees whose depth is not greater
+ * than `level`. The count respects the canonical form for binary nodes:
+ * the right subtree must have depth exactly one less than the whole tree,
+ * while the left subtree can have any depth ≤ that of the whole tree.
+ *
+ * Let:
+ * - \( A_0 = |\text{arg0}| \)  (number of leaf atoms)
+ * - \( A_1 = |\text{arg1}| \)  (number of unary atoms)
+ * - \( A_2 = |\text{arg2}| \)  (number of binary atoms)
+ * - \( M(l) \) = number of trees with depth ≤ l, with \( M(-1) = 0 \).
+ *
+ * Then for \( l \ge 0 \):
+ * \[
+ * M(0) = A_0
+ * \]
+ * \[
+ * M(l) = M(l-1) \;+\; \bigl(M(l-1)-M(l-2)\bigr) \cdot A_1
+ *        \;+\; M(l-1) \cdot \bigl(M(l-1)-M(l-2)\bigr) \cdot A_2
+ * \]
+ * Explanation:
+ * - Trees of depth ≤ l-1 are already counted in \( M(l-1) \).
+ * - New trees of **exact** depth l are built from a unary or binary root
+ *   whose subtrees reach depth l-1 exactly once.
+ * - Exactly \( M(l-1)-M(l-2) \) trees have depth exactly l-1.
+ * - Unary trees of depth l: choose any unary atom (\(A_1\) ways) and
+ *   a subtree of depth exactly l-1 → \( (M(l-1)-M(l-2)) \cdot A_1 \).
+ * - Binary trees of depth l: choose any binary atom (\(A_2\) ways);
+ *   the left subtree can be any tree of depth ≤ l-1 (\(M(l-1)\) choices);
+ *   the right subtree must have depth exactly l-1 (\(M(l-1)-M(l-2)\) choices).
+ *   Total: \( M(l-1) \cdot (M(l-1)-M(l-2)) \cdot A_2 \).
+ *
+ * @param level Maximum depth of trees (non‑negative integer).
+ * @return Total number of trees with depth ≤ level.
+ */
     [[nodiscard]] SerialNumber_t MaxSerialNumber(std::size_t level) const
     {
+        // Base case: only leaves (arity 0) have depth 0.
         if (level == 0) {
             return m_atoms->arg0.size();
         }
 
+        // Number of trees with depth ≤ level-1.
         const auto max_prev = MaxSerialNumber(level - 1);
+
+        // Number of trees with depth exactly level-1.
+        // For level = 1, trees of depth exactly 0 are just the leaves,
+        // and M(-1) is defined as 0.
         const auto max_prev_lvl = (level > 1) ? max_prev - MaxSerialNumber(level - 2) : max_prev;
-        const auto m =
-            (max_prev * max_prev_lvl * m_atoms->arg2.size()) + (max_prev_lvl * m_atoms->arg1.size()) + max_prev;
+
+        // Total for depth ≤ level:
+        //   old ones (max_prev)
+        // + new unary trees of depth level
+        // + new binary trees of depth level
+        const auto m = (max_prev * max_prev_lvl * m_atoms->arg2.size())  // binary trees
+                       + (max_prev_lvl * m_atoms->arg1.size())           // unary trees
+                       + max_prev;                                       // trees of smaller depth
         return m;
     }
 
     /**
-     * @brief Get unique serial number for this tree
-     * @return Serial number that uniquely identifies this tree structure
-     * 
-     * Serial numbers are assigned in lexicographic order of tree structures.
-     */
+ * @brief Compute the unique serial number of this tree.
+ *
+ * Serial numbers are assigned in lexicographic order of tree structures:
+ * first by increasing depth, then within each depth level according to a
+ * canonical ordering:
+ * - Leaves (arity 0) are ordered by their atom index (0 … A₀‑1).
+ * - Unary trees are ordered first by the atom index of their root,
+ *   then by the serial number of the (only) subtree.
+ * - Binary trees respect the canonical form: the right subtree always has
+ *   depth exactly one less than the whole tree. They are ordered first by
+ *   the atom index of the root, then by the **right** subtree (among trees
+ *   of exact depth level‑1), and finally by the **left** subtree (among all
+ *   trees of depth ≤ level‑1).
+ *
+ * The numbering is built as an offset from all trees of smaller depth,
+ * plus a local index within the current depth level.
+ *
+ * Let:
+ * - \( l \) = depth of this tree (obtained via `CurrentMaxLevel()`).
+ * - \( M(d) \) = `MaxSerialNumber(d)`.
+ * - \( A_1 = |\text{arg1}| \), \( A_2 = |\text{arg2}| \).
+ * - \( \text{idx}_1 \) = index of the root atom among unary atoms.
+ * - \( \text{idx}_2 \) = index of the root atom among binary atoms.
+ *
+ * Then:
+ * - For a leaf (arity 0):
+ *   \[
+ *   \text{sn} = \text{atom index}
+ *   \]
+ *
+ * - For a unary tree:
+ *   \[
+ *   \text{sn} = M(l-1) \;+\; \bigl(M(l-1)-M(l-2)\bigr) \cdot \text{idx}_1
+ *               \;+\; \bigl(\text{sn}(\text{sub}) - M(l-2)\bigr)
+ *   \]
+ *   where \(\text{sn}(\text{sub})\) is the serial number of the subtree,
+ *   and \(M(l-2)\) is subtracted because the subtree must have depth exactly
+ *   \(l-1\) (its serial number lies in the range \([M(l-2),\, M(l-1)-1]\)).
+ *
+ * - For a binary tree:
+ *   \[
+ *   \begin{aligned}
+ *   \text{sn} = M(l-1) &+ \bigl(M(l-1)-M(l-2)\bigr) \cdot A_1 \\
+ *                       &+ M(l-1)\cdot\bigl(M(l-1)-M(l-2)\bigr) \cdot \text{idx}_2 \\
+ *                       &+ M(l-1) \cdot \bigl(\text{sn}(\text{right}) - M(l-2)\bigr) \\
+ *                       &+ \text{sn}(\text{left})
+ *   \end{aligned}
+ *   \]
+ *   Here \(\text{sn}(\text{right})\) is the serial number of the right subtree
+ *   (depth exactly \(l-1\)) and \(\text{sn}(\text{left})\) is that of the left
+ *   subtree (any depth ≤ \(l-1\)).
+ *
+ * @return Serial number uniquely identifying this tree.
+ */
     [[nodiscard]] SerialNumber_t SerialNumber() const
     {
+        // Leaf case: depth 0, number is simply the atom's index.
         if (Arity() == 0) {
             return m_atom_index.num;
         }
 
+        // Determine the depth of this tree.
         const auto level = CurrentMaxLevel();
+
+        // Total count of trees with depth ≤ level-1 (they occupy the first slots).
         const auto max_prev = MaxSerialNumber(level - 1);
+
+        // Total count of trees with depth ≤ level-2 (used for normalization).
         const auto max_prev2 = (level > 1) ? MaxSerialNumber(level - 2) : 0;
+
+        // Number of trees with depth exactly level-1.
         const auto max_prev_lvl = max_prev - max_prev2;
+
+        // Start with the offset of all smaller-depth trees.
         std::size_t snum = max_prev;
 
         if (Arity() == 1) {
-            snum += max_prev_lvl * m_atom_index.num;
-            auto snum1 = m_arg1->SerialNumber() - max_prev2;
+            // Unary tree: add contribution of the unary atom index,
+            // then the normalized serial number of the subtree (which must
+            // have depth exactly level-1).
+            snum += max_prev_lvl * m_atom_index.num;          // offset for this atom
+            auto snum1 = m_arg1->SerialNumber() - max_prev2;  // subtree index within depth level-1
             snum += snum1;
         }
         else if (Arity() == 2) {
-            snum += max_prev_lvl * m_atoms->arg1.size();
-            snum += max_prev * max_prev_lvl * m_atom_index.num;
-            auto snum1 = m_arg1->SerialNumber();
-            auto snum2 = m_arg2->SerialNumber() - max_prev2;
-            snum += max_prev * snum2 + snum1;
+            // Binary tree: first skip all unary trees of this depth,
+            // then add the contribution of the binary atom index,
+            // then add the contributions of the two subtrees.
+            snum += max_prev_lvl * m_atoms->arg1.size();         // all unary trees of depth level
+            snum += max_prev * max_prev_lvl * m_atom_index.num;  // offset for this binary atom
+            auto snum1 = m_arg1->SerialNumber();                 // left subtree (any depth ≤ level-1)
+            auto snum2 = m_arg2->SerialNumber() - max_prev2;     // right subtree (depth exactly level-1)
+            snum += max_prev * snum2 + snum1;                    // combine: first by right, then by left
         }
         return snum;
     }
