@@ -116,6 +116,10 @@ TEST(FuncIterator, SerialNumber)
         ASSERT_EQ(snum, snum_etalon);
         ASSERT_GT(snum, snum_old);
         snum_old = snum;
+        FuncNode<uint16_t> fnc_restored{&atoms};
+        fnc_restored.FromSerialNumber(snum);
+        //std::println("{:12}: {:16} <-> {:16}", snum, fnc.Repr(), fnc_restored.Repr());
+        ASSERT_EQ(fnc, fnc_restored);
     }
 }
 

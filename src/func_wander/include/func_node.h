@@ -465,6 +465,49 @@ class FuncNode
         return snum;
     }
 
+    void FromSerialNumber(const SerialNumber_t snum)
+    {
+        std::size_t level = 0;
+
+        auto snum_l = MaxSerialNumber(level);
+        while (snum_l <= snum) {
+            level += 1;
+            snum_l = MaxSerialNumber(level);
+        }
+
+        if (level == 0) {
+            assert(snum < m_atoms->arg0.size());
+            m_atom_index.arity = 0;
+            m_atom_index.num = snum;
+            return;
+        }
+
+        const auto max_prev = MaxSerialNumber(level - 1);
+        const auto max_prev2 = (level > 1) ? MaxSerialNumber(level - 2) : 0;
+        const auto max_prev_lvl = max_prev - max_prev2;
+        const auto offset = snum - max_prev;
+        const auto arg1_max_snum = max_prev_lvl * m_atoms->arg1.size();
+        if (offset < arg1_max_snum) {
+            m_atom_index.arity = 1;
+            m_atom_index.num = offset / max_prev_lvl;
+            const auto arg1_snum = (offset % max_prev_lvl) + max_prev2;
+            m_arg1 = std::make_unique<FuncNode>(m_atoms);
+            m_arg1->FromSerialNumber(arg1_snum);
+        }
+        else {
+            m_atom_index.arity = 2;
+            const auto ar2_offset = offset - max_prev_lvl * m_atoms->arg1.size();
+            const auto foo = ar2_offset / max_prev;
+            const auto arg1_sn = ar2_offset % max_prev;
+            m_atom_index.num = foo / max_prev_lvl;
+            const auto arg2_sn = foo % max_prev_lvl + max_prev2;
+            m_arg1 = std::make_unique<FuncNode>(m_atoms);
+            m_arg1->FromSerialNumber(arg1_sn);
+            m_arg2 = std::make_unique<FuncNode>(m_atoms);
+            m_arg2->FromSerialNumber(arg2_sn);
+        }
+    }
+
     /// @brief Clear cached calculation results
     void ClearCalculated() { m_values.clear(); }
 
