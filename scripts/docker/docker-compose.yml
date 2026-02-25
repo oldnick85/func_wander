@@ -1,0 +1,33 @@
+services:
+  # Linux build and test services
+  func-wander-linux-build:
+    build:
+      context: ../../
+      dockerfile: scripts/docker/linux/Dockerfile
+    volumes:
+      - ../../.:/workspace
+    command: [ "build", "Release", "build-linux" ]
+
+  func-wander-linux-test:
+    build:
+      context: ../../
+      dockerfile: scripts/docker/linux/Dockerfile
+    volumes:
+      - ../../.:/workspace
+    command: [ "test", "Release", "build-linux" ]
+
+  func-wander-linux-format:
+    build:
+      context: ../../
+      dockerfile: scripts/docker/linux/Dockerfile
+    volumes:
+      - ../../.:/workspace
+    command: [ "format" ]
+
+  func-wander-linux-all:
+    build:
+      context: ../../
+      dockerfile: scripts/docker/linux/Dockerfile
+    volumes:
+      - .:/workspace
+    command: [ "all", "Release", "build-linux" ]

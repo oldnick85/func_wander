@@ -122,6 +122,32 @@ doxygen Doxyfile
 # Open docs/html/index.html in your browser
 ```
 
+## 🐋 Docker Compose Development Workflow
+
+### 📋 Overview
+
+This project uses Docker Compose to provide a consistent development environment for building, testing, and analyzing the C++ codebase. 
+All development tasks can be performed through standardized Docker commands, ensuring consistent results across different machines.
+
+**⚠️ Important Warning! Always execute commands from the project's root directory to ensure proper path resolution.**
+
+### 🚀 Available Commands
+
+🔨 Build the Project
+```bash
+docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-build
+```
+
+🧪 Run Tests
+```bash
+docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-test
+```
+
+🎨 Check Code Formatting
+```bash
+docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-format
+```
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

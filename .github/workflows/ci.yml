@@ -1,0 +1,24 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build
+        run: docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-build
+        
+      - name: Run tests
+        run: docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-test
+        
+      - name: Check formatting
+        run: docker compose -f scripts/docker/docker-compose.yml run --rm func-wander-linux-format
