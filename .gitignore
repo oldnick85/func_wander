@@ -30,6 +30,7 @@
 
 # Ignore build directories
 build/
+build-*/
 */build/
 out/
 bin/
