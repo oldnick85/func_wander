@@ -2,8 +2,11 @@
 
 #include <compare>
 #include <cstddef>
+#include <unordered_set>
 
 #include "common.h"
+#include "func_node.h"
+#include "target.h"
 
 namespace fw
 {
@@ -76,5 +79,25 @@ class SuitabilityMetrics
         return std::strong_ordering::equivalent;
     }
 };
+
+/**
+ * @brief Calculate composite distance metric for a function
+ * @param fnc Function tree to evaluate
+ * @return Composite distance score (lower = better)
+ * 
+ * Distance formula:
+ *   distance = (target_distance × 10) + depth + (node_count × 2)
+ * 
+ * Weights can be adjusted based on preference for accuracy vs simplicity.
+ */
+template <typename FuncValue_t, bool SKIP_CONSTANT = false, bool SKIP_SYMMETRIC = false>
+SuitabilityMetrics CalcDist(FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>& fnc, Target<FuncValue_t>* target)
+{
+    const auto fnc_calc = fnc.Calculate();
+    const auto fnc_cmp = target->Compare(fnc_calc);
+    std::unordered_set<SerialNumber_t, SerialNumberHash> uniqs{};
+    fnc.UniqFunctionsSerialNumbers(uniqs);
+    return SuitabilityMetrics(fnc_cmp, fnc.CurrentMaxLevel(), fnc.FunctionsCount(), uniqs.size());
+}
 
 }  // namespace fw
