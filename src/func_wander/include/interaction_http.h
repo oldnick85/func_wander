@@ -41,8 +41,6 @@ std::string GenerateHTML(const status::Status& status)
     std::string html;
     auto it = std::back_inserter(html);
 
-    // Lambda to format a std::chrono::nanoseconds duration as HH:MM:SS.
-    // Hours can have an arbitrary number of digits (e.g., H, HH, HHH, ...).
     auto format_duration = [](std::chrono::nanoseconds d) -> std::string
     {
         using namespace std::chrono;
@@ -57,14 +55,13 @@ std::string GenerateHTML(const status::Status& status)
         return oss.str();
     };
 
-    // Start of HTML document (curly braces in CSS/JS are escaped by doubling {{}})
     it = std::format_to(
         it,
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
         "<head>\n"
         "    <meta charset=\"UTF-8\">\n"
-        "    <meta http-equiv=\"refresh\" content=\"10\">\n"  // Auto-refresh every 10 seconds
+        "    <meta http-equiv=\"refresh\" content=\"10\">\n"
         "    <title>System Status</title>\n"
         "    <style>\n"
         "        body {{ font-family: Arial, sans-serif; margin: 20px; }}\n"
@@ -87,68 +84,109 @@ std::string GenerateHTML(const status::Status& status)
         "                    }}\n"
         "                }})\n"
         "                .catch(error => alert('Error: ' + error));\n"
-        "            return false; // Prevent any default action\n"
+        "            return false;\n"
         "        }}\n"
         "    </script>\n"
         "</head>\n"
         "<body>\n"
         "    <h1>System Status (auto-refresh every 10 seconds)</h1>\n"
         "\n"
-        // Main information table
-        "    <table>\n"
-        "        <tr><th>Field</th><th>Value</th></tr>\n");
+        "     <table>\n"
+        "         <tr><th>Field</th><th>Value</th></tr>\n");
 
-    // Main information with formatting
-    it =
-        std::format_to(it,
-                       "        <tr><td>Current Serial Number</td><td>{}</td></tr>\n"
-                       "        <tr><td>Max Serial Number</td><td>{}</td></tr>\n"
-                       "        <tr><td>Done Percent</td><td>{:.2f}%</td></tr>\n"
-                       "        <tr><td>Elapsed Time</td><td>{}</td></tr>\n"
-                       "        <tr><td>Remaining Time</td><td>{}</td></tr>\n"
-                       "        <tr><td>Iterations/sec</td><td>{}</td></tr>\n"
-                       "        <tr><td>Total Iterations</td><td>{}</td></tr>\n"
-                       "        <tr><td>Current Function</td><td>{}</td></tr>\n"
-                       "    </table>\n"
-                       "\n"
-                       // Progress bar (placed above the best functions table)
-                       "    <div class=\"progress\">\n"
-                       "        <div class=\"progress-bar\" style=\"width:{:.1f}%;\">{:.1f}%</div>\n"
-                       "    </div>\n"
-                       "\n"
-                       // Stop button – sends an asynchronous POST request, stays on the same page
-                       "    <button onclick=\"return stopProcess();\" style=\"margin: 10px 0;\">Stop Process</button>\n"
-                       "\n"
-                       // Best functions table header
-                       "    <h2>Best Functions</h2>\n"
-                       "    <table>\n"
-                       "        <tr><th>Distance</th><th>Max Level</th><th>Functions Count</th><th>Functions "
-                       "Unique</th><th>Function</th><th>Match Positions</th></tr>\n",
-                       int128_to_string(status.snum), int128_to_string(status.max_sn), status.done_percent,
-                       format_duration(status.elapsed), format_duration(status.remaining), status.iterations_per_sec,
-                       status.iterations_count, status.current_function,
-                       status.done_percent,  // progress bar width
-                       status.done_percent   // text inside progress bar
-        );
+    it = std::format_to(
+        it,
+        "         <tr><td>Current Serial Number</td><td>{}</td></tr>\n"
+        "         <tr><td>Max Serial Number</td><td>{}</td></tr>\n"
+        "         <tr><td>Done Percent</td><td>{:.2f}%</td></tr>\n"
+        "         <tr><td>Elapsed Time</td><td>{}</td></tr>\n"
+        "         <tr><td>Remaining Time</td><td>{}</td></tr>\n"
+        "         <tr><td>Iterations/sec</td><td>{}</td></tr>\n"
+        "         <tr><td>SN/sec</td><td>{}</td></tr>\n"
+        "         <tr><td>Total Iterations</td><td>{}</td></tr>\n"
+        "         <tr><td>Current Function</td><td>{}</td></tr>\n"
+        "     </table>\n"
+        "\n"
+        "     <div class=\"progress\">\n"
+        "         <div class=\"progress-bar\" style=\"width:{:.1f}%;\">{:.1f}%</div>\n"
+        "     </div>\n"
+        "\n"
+        "     <button onclick=\"return stopProcess();\" style=\"margin: 10px 0;\">Stop Process</button>\n"
+        "\n"
+        "     <h2>Best Functions</h2>\n"
+        "     <table>\n"
+        "         <tr><th>Distance</th><th>Max Level</th><th>Functions Count</th><th>Functions Unique</th>"
+        "<th>Function</th><th>Match Positions</th></tr>\n",
+        int128_to_string(status.func_serial_number), int128_to_string(status.max_func_serial_number),
+        status.done_percent, format_duration(status.elapsed), format_duration(status.remaining),
+        status.iterations_per_sec, status.sn_per_sec, status.iterations_count, status.current_function,
+        status.done_percent, status.done_percent);
 
-    // Fill the best functions table
     for (const auto& bf : status.best_functions) {
         it = std::format_to(it,
-                            "        <tr>"
-                            "<td>{}</td>"
-                            "<td>{}</td>"
-                            "<td>{}</td>"
-                            "<td>{}</td>"
-                            "<td>{}</td>"
-                            "<td>{}</td>"
+                            "         <tr>"
+                            "<td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>"
                             "</tr>\n",
                             bf.suit.distance(), bf.suit.max_level(), bf.suit.functions_count(),
                             bf.suit.functions_unique(), bf.function, bf.match_positions);
     }
 
-    // Closing tags
+    it = std::format_to(it, "     </table>\n\n");
+
+    // Workers status section (updated)
+    it = std::format_to(it, "     <h2>Workers Status</h2>\n");
+    if (status.workers_status.empty()) {
+        it = std::format_to(it, "     <p>No workers active.</p>\n");
+    }
+    else {
+        it = std::format_to(
+            it,
+            "     <table>\n"
+            "         <tr><th>Worker ID</th><th>SN Range from</th><th>SN Range to</th><th>Current SN</th>"
+            "<th>Current Function</th><th>Progress</th><th>Task Count</th><th>Best Functions</th></tr>\n");
+        size_t worker_id = 0;
+        for (const auto& ws : status.workers_status) {
+            const auto range_from_str = int128_to_string(ws.func_serial_number_from);
+            const auto range_to_str = int128_to_string(ws.func_serial_number_to);
+            std::string current_sn_str = int128_to_string(ws.func_serial_number);
+
+            std::string progress_bar_html = std::format(
+                "<div class=\"progress\" style=\"margin:0;\"><div class=\"progress-bar\" "
+                "style=\"width:{:.1f}%;\">{:.1f}%</div></div>",
+                ws.done_percent, ws.done_percent);
+
+            size_t best_count = ws.best_functions.size();
+            std::string best_functions_str = std::to_string(best_count);
+            if (best_count > 0) {
+                std::string tooltip;
+                for (const auto& bf : ws.best_functions) {
+                    if (!tooltip.empty()) {
+                        tooltip += ", ";
+                    }
+                    tooltip += bf.function;
+                }
+                best_functions_str = std::format("<span title=\"{}\">{}</span>", tooltip, best_count);
+            }
+
+            it = std::format_to(it,
+                                "         <tr>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "<td>{}</td>"
+                                "</tr>\n",
+                                worker_id, range_from_str, range_to_str, current_sn_str, ws.current_function,
+                                progress_bar_html, ws.task_count, best_functions_str);
+            ++worker_id;
+        }
+        it = std::format_to(it, "     </table>\n");
+    }
+
     std::format_to(it,
-                   "    </table>\n"
                    "</body>\n"
                    "</html>\n");
 
@@ -179,7 +217,7 @@ void ServerThread(const status::Status& status, std::atomic<bool>& stop_flag, co
             [&status](const httplib::Request& /*req*/, httplib::Response& res)
             {
                 // In a real application you would use a proper JSON library.
-                std::string json = "{\"snum\":\"" + int128_to_string(status.snum) +
+                std::string json = "{\"snum\":\"" + int128_to_string(status.func_serial_number) +
                                    "\",\"done_percent\":" + std::to_string(status.done_percent) + "}";
                 res.set_content(json, "application/json");
             });

@@ -24,6 +24,53 @@ using Distance = std::size_t;
 /// @brief Type for serial numbers of function trees (supports very large numbers)
 using SerialNumber_t = __int128;
 
+std::string SerialNumberToString(SerialNumber_t value)
+{
+    if (value == 0) {
+        return "0";
+    }
+    bool negative = false;
+    if (value < 0) {
+        negative = true;
+        value = -value;
+    }
+    std::string result;
+    while (value > 0) {
+        result.push_back('0' + static_cast<char>(value % 10));
+        value /= 10;
+    }
+    if (negative) {
+        result.push_back('-');
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::optional<SerialNumber_t> StringToSerialNumber(const std::string& str)
+{
+    if (str.empty()) {
+        return std::nullopt;
+    }
+    size_t start = 0;
+    bool negative = false;
+    if (str[0] == '-') {
+        negative = true;
+        start = 1;
+        if (str.size() == 1) {
+            return std::nullopt;
+        }
+    }
+    SerialNumber_t result = 0;
+    for (size_t i = start; i < str.size(); ++i) {
+        if (!std::isdigit(static_cast<unsigned char>(str[i]))) {
+            return std::nullopt;
+        }
+        result = result * 10 + (str[i] - '0');
+        // Optional: Add overflow detection here if needed
+    }
+    return negative ? -result : result;
+}
+
 struct SerialNumberHash
 {
     std::size_t operator()(__int128 x) const
@@ -183,6 +230,31 @@ class RangeSet
    private:
     /// @brief Internal storage of ranges as [start, end] pairs, sorted by start
     std::set<std::pair<Tnum, Tnum>> m_ranges;
+};
+
+/**
+ * @struct Settings
+ * @brief Configuration parameters for search tasks
+ * 
+ * Contains all tunable parameters that control the search behavior,
+ * including resource limits and output settings.
+ */
+struct Settings
+{
+    /// @brief Equality comparison operator
+    bool operator==(const Settings& other) const
+    {
+        return ((save_file == other.save_file) and (max_best == other.max_best) and (max_depth == other.max_depth));
+    }
+
+    std::string save_file;                ///< 📁 File path for automatic save/load of search state
+    std::size_t max_best = 32;            ///< 🏆 Maximum number of best functions to retain
+    std::size_t max_depth = 2;            ///< 🌳 Maximum depth of function trees to explore
+    bool http_enabled = false;            ///< 🌐 Enable/disable HTTP server for remote control
+    std::string http_host = "localhost";  ///< 🖧 Host address for HTTP server (default: localhost)
+    int http_port = 8080;                 ///< 🔌 Port for HTTP server (default: 8080)
+    uint threads = 12;
+    uint64_t tasks_per_worker_count = 10'000;
 };
 
 /// @} // end of Common group

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <ranges>
 
 #include "comparison.h"
 #include "func_node.h"
@@ -10,9 +11,34 @@ namespace fw
 {
 
 template <typename FuncValue_t, bool SKIP_CONSTANT = false, bool SKIP_SYMMETRIC = false>
+class BestFunc
+{
+   public:
+    using FuncValues_t = std::vector<FuncValue_t>;
+
+    BestFunc(FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>& func_, const FuncValues_t& calc_,
+             const SuitabilityMetrics& suit_, const RangeSet<std::size_t>& ranges_)
+        : func(func_), calc(calc_), suit(suit_), ranges(ranges_)
+    {
+    }
+
+    FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC> func;
+    FuncValues_t calc;
+    SuitabilityMetrics suit;
+    RangeSet<std::size_t> ranges;
+};
+
+template <typename FuncValue_t, bool SKIP_CONSTANT = false, bool SKIP_SYMMETRIC = false>
 class BestPool
 {
    public:
+    using BestFunc_t = BestFunc<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>;
+
+    void Reset()
+    {
+        m_best.clear();
+        m_suit_threshold.Reset();
+    }
     /**
      * @brief Evaluate and potentially add function to best list
      * @param fnc Candidate function tree
@@ -29,54 +55,48 @@ class BestPool
     void CheckBest(FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>& fnc, Target<FuncValue_t>* target,
                    std::size_t max_best)
     {
-        if (m_best.empty()) {
-            m_best.push_back(fnc);
+        const auto fnc_calc = fnc.Calculate();
+        const auto ranges = target->MatchPositions(fnc_calc);
+
+        if (ranges.Count() == 0) {
             return;
         }
 
-        const auto fnc_calc = fnc.Calculate();
-        const auto fnc_ranges = target->MatchPositions(fnc_calc);
-        const auto new_dist = CalcDist(fnc, target);
-        if (m_best.size() >= max_best) {
-            if (new_dist > m_suit_threshold) {
+        BestFunc_t fnc_kit{fnc, fnc_calc, CalcDist(fnc, target), ranges};
+
+        if (m_best.empty()) {
+            m_best.push_back(fnc_kit);
+            return;
+        }
+        else {
+            if (m_best.size() >= max_best) {
+                if (fnc_kit.suit > m_suit_threshold) {
+                    return;
+                }
+            }
+
+            // Check for uniqueness to avoid duplicates
+            if (not UniqueValues(fnc_kit, target)) {
                 return;
             }
-        }
 
-        auto best_it = m_best.begin();
-        while (best_it != m_best.end()) {
-            const auto dist = CalcDist(*best_it, target);
-            if (new_dist < dist) {
-                // Check for uniqueness to avoid duplicates
-                bool unique_values = true;
-                for (auto& b : m_best) {
-                    const auto b_calc = b.Calculate();
-                    const auto b_ranges = target->MatchPositions(b_calc);
-                    if (b_calc == fnc_calc) {
-                        unique_values = false;
-                        break;
-                    }
-                    if (b_ranges == fnc_ranges) {
-                        unique_values = false;
-                        break;
-                    }
-                }
-                if (not unique_values) {
+            auto best_it = m_best.begin();
+            while (best_it != m_best.end()) {
+                if (fnc_kit.suit < best_it->suit) {
                     break;
                 }
-                m_best.insert(best_it, fnc);
-                break;
+                ++best_it;
             }
-            ++best_it;
-        }
+            m_best.insert(best_it, fnc_kit);
 
-        // Maintain maximum list size
-        while (m_best.size() > max_best) {
-            m_best.pop_back();
+            // Maintain maximum list size
+            while (m_best.size() > max_best) {
+                m_best.pop_back();
+            }
         }
 
         // Update threshold to worst distance in current best list
-        m_suit_threshold = CalcDist(m_best.back(), target);
+        m_suit_threshold = m_best.back().suit;
     }
 
     void CheckBest(BestPool<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>& other, Target<FuncValue_t>* target,
@@ -87,8 +107,36 @@ class BestPool
         }
     }
 
-    const std::list<FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>>& Functions() const { return m_best; }
-    std::list<FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>>& Functions() { return m_best; }
+    bool UniqueValues(const BestFunc_t& fnc_kit, Target<FuncValue_t>* target)
+    {
+        for (auto& b : m_best) {
+            const auto b_calc = b.func.Calculate();
+            const auto b_ranges = target->MatchPositions(b_calc);
+            if (b.calc == fnc_kit.calc) {
+                return false;
+            }
+            if (b.ranges == fnc_kit.ranges) {
+                return false;
+            }
+            if (b.func.SerialNumber() == fnc_kit.func.SerialNumber()) {
+                std::println("!");
+            }
+            if (b.func.Repr() == fnc_kit.func.Repr()) {
+                std::println("!");
+            }
+        }
+        return true;
+    }
+
+    const std::list<BestFunc<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>>& FunctionsKit() const { return m_best; }
+
+    std::list<FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>> Functions()
+    {
+        auto funcs = m_best | std::views::transform(&BestFunc<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>::func) |
+                     std::ranges::to<std::list>();
+        return funcs;
+    }
+
     const SuitabilityMetrics& SuitThreshold() const { return m_suit_threshold; }
     void SetSuitThreshold(const SuitabilityMetrics& suit_threshold) { m_suit_threshold = suit_threshold; }
 
@@ -104,8 +152,7 @@ class BestPool
     }
 
    private:
-    std::list<FuncNode<FuncValue_t, SKIP_CONSTANT, SKIP_SYMMETRIC>>
-        m_best;                           ///< 🏆 Best functions found (maintained in order)
+    std::list<BestFunc_t> m_best;         ///< 🏆 Best functions found (maintained in order)
     SuitabilityMetrics m_suit_threshold;  ///< 📊 Worst distance currently in best list
 };
 

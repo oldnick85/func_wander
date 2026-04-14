@@ -47,7 +47,7 @@
 
 using fw::AtomFuncBase;
 using fw::AtomFuncs;
-using fw::SearchTask;
+using fw::SearchManager;
 using fw::Settings;
 
 namespace
@@ -58,7 +58,7 @@ std::vector<std::unique_ptr<AtomFuncBase>> g_atoms;
 
 void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
 {
-    constexpr std::size_t MAX_CONSTANTS = 8;
+    constexpr std::size_t MAX_CONSTANTS = 0xFFFF;
     constexpr std::size_t MAX_CONSTANTS_2_POW = 15;
 
     auto af_x = std::make_unique<AF_ARG_X>();
@@ -88,6 +88,7 @@ void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
     }
     //auto af_fw1 = std::make_unique<AF_FW1>();
     //atoms.Add(af_fw1.get());
+    //g_atoms.push_back(std::move(af_fw1));
     //auto af_fw2 = std::make_unique<AF_FW2>();
     //atoms.Add(af_fw2.get());
 
@@ -102,9 +103,12 @@ void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
     auto af_bc = std::make_unique<AF_BITCOUNT>();
     atoms.Add(af_bc.get());
     g_atoms.push_back(std::move(af_bc));
-    //auto af_sum = std::make_unique<AF_SUM>();
-    //atoms.Add(af_sum.get());
-    //g_atoms.push_back(std::move(af_sum));
+    auto af_bcz = std::make_unique<AF_BITCLZ>();
+    atoms.Add(af_bcz.get());
+    g_atoms.push_back(std::move(af_bcz));
+    auto af_sum = std::make_unique<AF_SUM>();
+    atoms.Add(af_sum.get());
+    g_atoms.push_back(std::move(af_sum));
     //auto af_sub = std::make_unique<AF_SUB>();
     //atoms.Add(af_sub.get());
     //g_atoms.push_back(std::move(af_sub));
@@ -143,6 +147,11 @@ int main(int argc, char* argv[])
     app.add_option("--max-depth", settings.max_depth, "Maximum expression tree depth (positive integer)")
         ->check(CLI::PositiveNumber);
     app.add_option("--max-best", settings.max_best, "Number of top solutions to retain (positive integer)")
+        ->check(CLI::PositiveNumber);
+    app.add_option("--threads", settings.threads, "Worker threads (default: 0 - means all)")
+        ->check(CLI::NonNegativeNumber);
+    app.add_option("--worker-tasks", settings.tasks_per_worker_count,
+                   "Number of top solutions to retain (default: 10k)")
         ->check(CLI::PositiveNumber);
     app.add_flag("--http", settings.http_enabled, "Enable HTTP server for remote control");
     app.add_option("--http-host", settings.http_host, "Host address for HTTP server (default: localhost)");

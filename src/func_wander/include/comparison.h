@@ -30,11 +30,19 @@ class SuitabilityMetrics
     std::size_t functions_count() const { return m_functions_count; }
     std::size_t functions_unique() const { return m_functions_unique; }
 
+    void Reset()
+    {
+        m_distance = 1000000;
+        m_max_level = 0;
+        m_functions_count = 0;
+        m_functions_unique = 0;
+    }
+
    private:
     Distance m_distance = 1000000;
-    std::size_t m_max_level;
-    std::size_t m_functions_count;
-    std::size_t m_functions_unique;
+    std::size_t m_max_level = 0;
+    std::size_t m_functions_count = 0;
+    std::size_t m_functions_unique = 0;
 
    public:
     bool operator==(const SuitabilityMetrics& other) const noexcept

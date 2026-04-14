@@ -9,14 +9,14 @@
 #include <atom_samples.h>
 #include <common.h>
 #include <func_node.h>
-#include <search_task.h>
+#include <search_manager.h>
 #include <target.h>
 
 using fw::AtomFuncs;
 using fw::Distance;
 using fw::FuncNode;
 using fw::RangeSet;
-using fw::SearchTask;
+using fw::SearchManager;
 using fw::Settings;
 using fw::Target;
 
@@ -109,16 +109,11 @@ TEST(FuncIterator, SerialNumber)
     while (fnc.Iterate(2)) {
         ++snum_etalon;
         snum = fnc.SerialNumber();
-        //if (snum_etalon % 10'000'000 == 0) {
-        //    std::println("{:60} {:12} {:12} {:12}", fnc.Repr(), snum, snum_etalon,
-        //                 fnc.MaxSerialNumber(fnc.CurrentMaxLevel()));
-        //}
         ASSERT_EQ(snum, snum_etalon);
         ASSERT_GT(snum, snum_old);
         snum_old = snum;
         FuncNode<uint16_t> fnc_restored{&atoms};
         fnc_restored.FromSerialNumber(snum);
-        //std::println("{:12}: {:16} <-> {:16}", snum, fnc.Repr(), fnc_restored.Repr());
         ASSERT_EQ(fnc, fnc_restored);
     }
 }
@@ -201,29 +196,6 @@ TEST(FuncIterator, SkipSymmetric)
     ASSERT_EQ(fnc.Repr(), "OR(2;3)");
     ASSERT_TRUE(fnc.Iterate(2));
     ASSERT_EQ(fnc.Repr(), "NOT(NOT(X))");
-}
-
-TEST(SearchTask, JSON)
-{
-    constexpr std::size_t MAX_BEST = 5;
-    constexpr std::size_t MAX_ITERATIONS = 100;
-
-    AtomFuncs<uint16_t> atoms = MakeAtoms();
-    Settings settings;
-    settings.max_best = MAX_BEST;
-    settings.max_depth = 2;
-    TestTarget target{};
-    ASSERT_FALSE(target.Values().empty());
-    SearchTask<uint16_t, true, true> task{settings, &atoms, &target};
-    for (std::size_t i = 0; i < MAX_ITERATIONS; ++i) {
-        ASSERT_TRUE(task.SearchIterate());
-        const auto json_str = task.ToJSON().dump();
-        SearchTask<uint16_t, true, true> new_task{settings, &atoms, &target};
-        ASSERT_TRUE(new_task.FromJSON(json_str));
-        //std::println("{}", new_task.Status());
-        ASSERT_EQ(task, new_task);
-    }
-    ASSERT_TRUE(true);
 }
 // NOLINTEND(readability-function-cognitive-complexity, readability-function-size)
 
