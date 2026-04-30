@@ -253,7 +253,7 @@ struct Settings
     bool http_enabled = false;            ///< 🌐 Enable/disable HTTP server for remote control
     std::string http_host = "localhost";  ///< 🖧 Host address for HTTP server (default: localhost)
     int http_port = 8080;                 ///< 🔌 Port for HTTP server (default: 8080)
-    uint threads = 12;
+    uint threads = 1;
     uint64_t tasks_per_worker_count = 10'000;
 };
 

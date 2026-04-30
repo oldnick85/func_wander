@@ -93,7 +93,6 @@ class SearchWorker
         m_snum_from = snum_from;
         m_snum_to = snum_to;
         m_fn.FromSerialNumber(m_snum_from);
-        //std::println("    worker #{} new task: from {} to {} fn={}", m_worker_num, m_snum_from, m_snum_to, m_fn.Repr());
         m_done = false;
     }
 
@@ -124,9 +123,10 @@ class SearchWorker
     BestPool_t GetBest() const
     {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        //std::println("    GetBest() (worker #{:3})", m_worker_num);
         return m_best_pool;
     }
+
+    SerialNumber_t GetSNumLast() const { return m_snum_last; }
 
    private:
     Settings m_settings;                        ///< ⚙️ Search configuration parameters
@@ -143,6 +143,7 @@ class SearchWorker
     uint64_t m_task_count = 0;
     SerialNumber_t m_snum_from = 0;
     SerialNumber_t m_snum_to = 0;
+    SerialNumber_t m_snum_last = 0;
 
     std::binary_semaphore& m_sem;
 
@@ -167,13 +168,12 @@ class SearchWorker
                 bool iterate_ok = true;
                 while (iterate_ok and (not m_done) and (not stoken.stop_requested())) {
                     iterate_ok = SearchIterate();
-                    if ((not iterate_ok) or (m_fn.SerialNumber() > m_snum_to)) {
-                        //std::println("    Search stopped (worker #{:3})", m_worker_num);
+                    const auto snum = m_fn.SerialNumber();
+                    m_snum_last = snum;
+                    if ((not iterate_ok) or (snum > m_snum_to)) {
                         m_done = true;
                         m_sem.release();
                     }
-                    //constexpr auto PauseCheck = std::chrono::milliseconds(10);
-                    //std::this_thread::sleep_for(PauseCheck);
                 }
             }
             else {
@@ -198,14 +198,10 @@ class SearchWorker
     bool SearchIterate()
     {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        if (not m_fn.Iterate(m_settings.max_depth)) {
+        if (not m_fn.Iterate(m_settings.max_depth, 0, std::nullopt)) {
             return false;
         }
-        //std::println("{}: {}", m_worker_num, m_fn.Repr());
         m_best_pool.CheckBest(m_fn, m_target, m_settings.max_best);
-        //for (const auto& best : m_best_pool.Functions()) {
-        //std::println(" * {}: {}", m_worker_num, best.Repr());
-        //}
         ++m_count;
         return true;
     }

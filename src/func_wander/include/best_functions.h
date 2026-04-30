@@ -118,12 +118,6 @@ class BestPool
             if (b.ranges == fnc_kit.ranges) {
                 return false;
             }
-            if (b.func.SerialNumber() == fnc_kit.func.SerialNumber()) {
-                std::println("!");
-            }
-            if (b.func.Repr() == fnc_kit.func.Repr()) {
-                std::println("!");
-            }
         }
         return true;
     }

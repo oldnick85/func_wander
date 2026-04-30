@@ -296,7 +296,6 @@ class SearchManager
     status::Status GetStatus()
     {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        std::println("    GetStatus()");
         return m_status;
     }
 
@@ -338,22 +337,24 @@ class SearchManager
     }
 
    private:
+    using WorkersPool = std::vector<std::unique_ptr<SearchWorker_t>>;
+
     Settings m_settings;                        ///< ⚙️ Search configuration parameters
     AtomFuncs<FuncValue_t>* m_atoms = nullptr;  ///< 🧩 Reference to atomic function library
     Target<FuncValue_t>* m_target = nullptr;    ///< 🎯 Reference to target specification
     TimePoint_t m_tm_start;                     ///< ⏱️ Search start time
     std::size_t m_count = 0;                    ///< 🔢 Number of iterations performed
-    SerialNumber_t m_snum = 0;
-    SerialNumber_t m_max_sn = 0;
-    SerialNumber_t m_task_step = 0;
-    BestPool_t m_best_pool;
-    mutable std::mutex m_mtx;  ///< 🔐 Mutex for thread-safe state access
-    std::vector<std::unique_ptr<SearchWorker_t>> m_workers;
-    std::jthread m_thread;  ///< 🧵 Background search thread
-    std::atomic_bool m_graceful_stop = false;
-    std::atomic_bool m_done = false;  ///< ✅ Completion flag (atomic for thread safety)
-    status::Status m_status;
-    std::binary_semaphore m_sem_workers{0};
+    SerialNumber_t m_snum = 0;                  ///< 🔢 Current serial number
+    SerialNumber_t m_max_sn = 0;                ///< 🛑 Upper limit for serial numbers
+    SerialNumber_t m_task_step = 0;             ///< 📏 Step size for serial numbers when dispatching tasks
+    BestPool_t m_best_pool;                     ///< 🏆 Pool holding the best functions
+    mutable std::mutex m_mtx;                   ///< 🔐 Mutex for thread-safe state access
+    WorkersPool m_workers;                      ///< 👷‍♂️ Collection of worker objects (parallel search tasks)
+    std::jthread m_thread;                      ///< 🧵 Background search thread
+    std::atomic_bool m_graceful_stop = false;   ///< 🙏 Flag to request graceful stop
+    std::atomic_bool m_done = false;            ///< ✅ Completion flag (atomic for thread safety)
+    status::Status m_status;                    ///< 📊 Current status of the search
+    std::binary_semaphore m_sem_workers{0};     ///< 🔔 Semaphore for worker synchronisation
 
     // NOLINTNEXTLINE(performance-unnecessary-value-param)
     void Search(std::stop_token stoken)
@@ -373,6 +374,10 @@ class SearchManager
             bool all_workers_done = true;
             for (auto& worker : m_workers) {
                 if (worker->Done()) {
+                    const auto snum_last = worker->GetSNumLast();
+                    if (m_snum < snum_last) {
+                        m_snum = snum_last;
+                    }
                     if ((m_snum <= m_max_sn) and (not m_graceful_stop)) {
                         const auto snum_from = m_snum;
                         auto snum_to = m_snum + m_task_step;

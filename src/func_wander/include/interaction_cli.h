@@ -18,11 +18,11 @@ void SignalHandler(int signal)
     std::println("got signal {}", signal);
     if (signal == SIGINT) {
         if (not g_graceful_stop) {
-            std::println("terminating by Ctrl+C: graceful stop, press again to stop immediately");
+            std::println("terminating by Ctrl+C: graceful stop, press again to stop faster");
             g_graceful_stop = true;
         }
         else {
-            std::println("terminating by Ctrl+C: stop immediately");
+            std::println("terminating by Ctrl+C: stop soon");
             g_stop = true;
         }
     }

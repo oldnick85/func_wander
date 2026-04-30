@@ -52,12 +52,29 @@ class AtomFuncs
      */
     void Add(AtomFunc0<FuncValue_t>* func)
     {
-        if (func->Constant()) {
-            arg0.push_back(func);
-        }
-        else {
+        // Non‑constant functions always go to the front
+        if (!func->Constant()) {
             arg0.insert(arg0.begin(), func);
+            return;
         }
+
+        // --- Constant functions: maintain ascending order by Val() ---
+
+        // Find the first constant element in the container
+        auto firstConst = std::find_if(arg0.begin(), arg0.end(), [](const auto* p) { return p->Constant(); });
+
+        // If there are no constants yet, simply append to the end
+        if (firstConst == arg0.end()) {
+            arg0.push_back(func);
+            return;
+        }
+
+        // Among the constant elements, insert at the correct position
+        // to keep them sorted by Val() in ascending order
+        auto pos = std::lower_bound(firstConst, arg0.end(), func, [](const auto* left, const auto* right)
+                                    { return left->Chars().max < right->Chars().max; });
+
+        arg0.insert(pos, func);
     }
 
     /// @brief Add a unary function
@@ -707,7 +724,8 @@ class FuncNode
      * Enumerates all possible trees in lexicographic order.
      * Skips constant or symmetric trees based on template parameters.
      */
-    bool Iterate(const std::size_t max_depth, const std::size_t current_depth = 0)
+    bool Iterate(const std::size_t max_depth, const std::size_t current_depth,
+                 const std::optional<FuncValue_t> restricted_max_constant_value)
     {
         bool keep_iterate = true;
         while (keep_iterate) {
@@ -718,6 +736,11 @@ class FuncNode
             ClearCalculated();
 
             if (Arity() == 0) {
+                if (restricted_max_constant_value.has_value()) {
+                    if (m_atoms->arg0[m_atom_index.num]->Chars().min > *restricted_max_constant_value) {
+                        return false;
+                    }
+                }
                 return true;
             }
 
@@ -752,15 +775,29 @@ class FuncNode
         return true;
     }
 
+    bool IterateArity1_CheckConstant(bool arg1_iterated)
+    {
+        if (not SKIP_CONSTANT) {
+            return true;
+        }
+
+        if (not arg1_iterated) {
+            return true;
+        }
+
+        if ((m_arg1->Arity() == 0) and (m_arg1->Constant())) {
+            return false;
+        }
+
+        return true;
+    }
+
     bool IterateArity1(const std::size_t max_depth, const std::size_t next_depth)
     {
-        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth);
+        const auto max_constant = m_atoms->arg1[m_atom_index.num]->RestrictedArgMaxConstant();
+        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth, max_constant);
 
-        if (SKIP_CONSTANT) {
-            if (arg1_iterated and (m_arg1->Arity() == 0) and (m_arg1->Constant())) {
-                arg1_iterated = false;
-            }
-        }
+        arg1_iterated = arg1_iterated and IterateArity1_CheckConstant(arg1_iterated);
 
         if (not arg1_iterated) {
             if (LastArityFunc()) {
@@ -777,48 +814,70 @@ class FuncNode
 
     bool IterateArity2_CheckConstant(bool arg1_iterated)
     {
-        if (SKIP_CONSTANT) {
-            if (arg1_iterated and (m_arg1->Arity() == 0) and (m_arg1->Constant()) and (m_arg2->Arity() == 0) and
-                (m_arg2->Constant())) {
-                return false;
-            }
+        if (not SKIP_CONSTANT) {
+            return true;
         }
+
+        if (not arg1_iterated) {
+            return true;
+        }
+
+        if ((m_arg1->Arity() == 0) and (m_arg1->Constant()) and (m_arg2->Arity() == 0) and (m_arg2->Constant())) {
+            return false;
+        }
+
         return true;
     }
 
     bool IterateArity2_CheckSymmetric(bool arg1_iterated)
     {
-        if (SKIP_SYMMETRIC) {
-            if (arg1_iterated and m_atoms->arg2[m_atom_index.num]->Commutative()) {
-                if (m_atoms->arg2[m_atom_index.num]->Idempotent()) {
-                    if (m_arg1->SerialNumber() >= m_arg2->SerialNumber()) {
-                        return false;
-                    }
+        if (not SKIP_SYMMETRIC) {
+            return true;
+        }
+
+        if (not arg1_iterated) {
+            return true;
+        }
+
+        if (m_atoms->arg2[m_atom_index.num]->Commutative()) {
+            if (m_atoms->arg2[m_atom_index.num]->Idempotent()) {
+                if (m_arg1->SerialNumber() >= m_arg2->SerialNumber()) {
+                    return false;
                 }
-                else {
-                    if (m_arg1->SerialNumber() > m_arg2->SerialNumber()) {
-                        return false;
-                    }
+            }
+            else {
+                if (m_arg1->SerialNumber() > m_arg2->SerialNumber()) {
+                    return false;
                 }
             }
         }
+
+        return true;
+    }
+
+    bool IterateArity2ArgsExhausted(const std::size_t max_depth, const std::size_t next_depth)
+    {
+        if (LastArityFunc()) {
+            return false;
+        }
+        NextArity2();
+        m_arg2->InitDepth(max_depth, next_depth);
+        m_arg1 = std::make_unique<FuncNode>(m_atoms);
         return true;
     }
 
     bool IterateArity2(const std::size_t max_depth, const std::size_t next_depth)
     {
-        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth);
+        const auto max_constant1 = m_atoms->arg2[m_atom_index.num]->RestrictedArg1MaxConstant();
+        bool arg1_iterated = m_arg1->Iterate(max_depth, next_depth, max_constant1);
 
         arg1_iterated = arg1_iterated and IterateArity2_CheckConstant(arg1_iterated);
         arg1_iterated = arg1_iterated and IterateArity2_CheckSymmetric(arg1_iterated);
 
         if (not arg1_iterated) {
-            if (not m_arg2->Iterate(max_depth, next_depth)) {
-                if (LastArityFunc()) {
-                    return false;
-                }
-                NextArity2();
-                m_arg2->InitDepth(max_depth, next_depth);
+            const auto max_constant2 = m_atoms->arg2[m_atom_index.num]->RestrictedArg2MaxConstant();
+            if (not m_arg2->Iterate(max_depth, next_depth, max_constant2)) {
+                return IterateArity2ArgsExhausted(max_depth, next_depth);
             }
             else {
                 m_arg1 = std::make_unique<FuncNode>(m_atoms);

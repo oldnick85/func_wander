@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -96,6 +97,23 @@ class AtomFunc1 : public AtomFuncBase
     [[nodiscard]] virtual bool CheckChars(const Characteristics<FuncValue_t>& arg_chars) const = 0;
 
     /**
+     * @brief Returns the maximum allowed constant value for the argument of a restricted function.
+     *
+     * This virtual function is intended to be overridden in derived classes that need to impose
+     * an upper bound on constant values passed as the first argument to a specific restricted
+     * operation. The default implementation returns `std::nullopt`, indicating that no maximum
+     * restriction applies.
+     *
+     * @tparam FuncValue_t The type of the function's value (e.g., arithmetic type).
+     *
+     * @return `std::optional<FuncValue_t>` containing the maximum permissible value if a limit exists,
+     *         or `std::nullopt` if the argument is unrestricted (default behavior).
+     *
+     * @note Override this method in subclasses that implement argument‑specific constant restrictions.
+     */
+    [[nodiscard]] virtual std::optional<FuncValue_t> RestrictedArgMaxConstant() const { return std::nullopt; }
+
+    /**
      * @brief Check if function is involutive (self-inverse)
      * @return true if f(f(x)) = x for all x
      */
@@ -133,6 +151,40 @@ class AtomFunc2 : public AtomFuncBase
 
     [[nodiscard]] virtual bool CheckChars(const Characteristics<FuncValue_t>& arg1_chars,
                                           const Characteristics<FuncValue_t>& arg2_chars) const = 0;
+
+    /**
+     * @brief Returns the maximum allowed constant value for the first argument of a restricted function.
+     *
+     * This virtual function is intended to be overridden in derived classes that need to impose
+     * an upper bound on constant values passed as the first argument to a specific restricted
+     * operation. The default implementation returns `std::nullopt`, indicating that no maximum
+     * restriction applies.
+     *
+     * @tparam FuncValue_t The type of the function's value (e.g., arithmetic type).
+     *
+     * @return `std::optional<FuncValue_t>` containing the maximum permissible value if a limit exists,
+     *         or `std::nullopt` if the argument is unrestricted (default behavior).
+     *
+     * @note Override this method in subclasses that implement argument‑specific constant restrictions.
+     */
+    [[nodiscard]] virtual std::optional<FuncValue_t> RestrictedArg1MaxConstant() const { return std::nullopt; }
+
+    /**
+     * @brief Returns the maximum allowed constant value for the second argument of a restricted function.
+     *
+     * This virtual function is intended to be overridden in derived classes that need to impose
+     * an upper bound on constant values passed as the first argument to a specific restricted
+     * operation. The default implementation returns `std::nullopt`, indicating that no maximum
+     * restriction applies.
+     *
+     * @tparam FuncValue_t The type of the function's value (e.g., arithmetic type).
+     *
+     * @return `std::optional<FuncValue_t>` containing the maximum permissible value if a limit exists,
+     *         or `std::nullopt` if the argument is unrestricted (default behavior).
+     *
+     * @note Override this method in subclasses that implement argument‑specific constant restrictions.
+     */
+    [[nodiscard]] virtual std::optional<FuncValue_t> RestrictedArg2MaxConstant() const { return std::nullopt; }
 
     /**
      * @brief Check if function is commutative

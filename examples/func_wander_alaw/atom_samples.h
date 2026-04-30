@@ -439,6 +439,8 @@ class AF_SHR : public AtomFunc2<Value_t>
         return true;
     };
 
+    [[nodiscard]] std::optional<Value_t> RestrictedArg2MaxConstant() const { return 16; }
+
     [[nodiscard]] bool Commutative() const override { return false; }
 
     [[nodiscard]] bool Idempotent() const override { return false; }
@@ -471,6 +473,8 @@ class AF_SHL : public AtomFunc2<Value_t>
         }
         return true;
     };
+
+    [[nodiscard]] std::optional<Value_t> RestrictedArg2MaxConstant() const { return 16; }
 
     [[nodiscard]] bool Commutative() const override { return false; }
 
