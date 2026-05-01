@@ -105,8 +105,10 @@ class SearchWorker
         status.func_serial_number_from = m_snum_from;
         status.func_serial_number_to = m_snum_to;
         status.done = m_done;
-        status.done_percent = ((status.func_serial_number - status.func_serial_number_from) * 100.0F) /
-                              (status.func_serial_number_to - status.func_serial_number_from);
+        const auto numerator = (status.func_serial_number - status.func_serial_number_from) * 1000;
+        const auto denominator = status.func_serial_number_to - status.func_serial_number_from;
+        const auto temp_done_percent = numerator / denominator;
+        status.done_percent = temp_done_percent / 10.0F;
         status.task_count = m_task_count;
 
         status.best_functions.reserve(m_best_pool.Functions().size());
