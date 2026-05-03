@@ -111,7 +111,7 @@ int MainLoop(const Settings& settings, AtomFuncs<TVal>& atoms, Target<TVal>& tar
 
         status = manager.GetStatus();
         if (settings.http_enabled) {
-            std::println("iterations_count={:12}; snum={} ({}); done={}", status.iterations_count,
+            std::println("iterations_count={:12}; snum={} ({}); done={}%", status.iterations_count,
                          status.func_serial_number, status.max_func_serial_number, status.done_percent);
         }
         else {

@@ -56,14 +56,10 @@ namespace
 bool g_print_target = false;
 std::vector<std::unique_ptr<AtomFuncBase>> g_atoms;
 
-void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
+void InitAtomConstants(AtomFuncs<Value_t>& atoms)
 {
-    constexpr std::size_t MAX_CONSTANTS = 0xFFFF;
+    constexpr std::size_t MAX_CONSTANTS = 0x0C;
     constexpr std::size_t MAX_CONSTANTS_2_POW = 15;
-
-    auto af_x = std::make_unique<AF_ARG_X>();
-    atoms.Add(af_x.get());
-    g_atoms.push_back(std::move(af_x));
 
     std::vector<Value_t> consts;
     for (std::size_t i = 1; i <= MAX_CONSTANTS_2_POW; ++i) {
@@ -73,6 +69,7 @@ void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
         }
         consts.push_back(val);
     }
+
     for (std::size_t i = 1; i <= MAX_CONSTANTS; ++i) {
         const auto val = static_cast<Value_t>(i);
         if (std::ranges::contains(consts, val)) {
@@ -81,21 +78,31 @@ void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
         consts.push_back(static_cast<Value_t>(val));
     }
 
+    consts.push_back(0b1000'0000'0000'1000);
+    consts.push_back(0b1000'0000'0001'0000);
+    consts.push_back(0b1000'0000'0010'0000);
+    consts.push_back(0b1000'0000'0100'0000);
+    consts.push_back(0b1000'0000'1000'0000);
+    //consts.push_back(~0b0000'0000'0000'1000);
+    //consts.push_back(~0b0000'0000'0001'0000);
+    //consts.push_back(~0b0000'0000'0010'0000);
+    //consts.push_back(~0b0000'0000'0100'0000);
+    //consts.push_back(~0b0000'0000'1000'0000);
+
     for (const auto val : consts) {
         auto af_c = std::make_unique<AF_CONST>(val);
         atoms.Add(af_c.get());
         g_atoms.push_back(std::move(af_c));
     }
-    //auto af_fw1 = std::make_unique<AF_FW1>();
-    //atoms.Add(af_fw1.get());
-    //g_atoms.push_back(std::move(af_fw1));
-    //auto af_fw2 = std::make_unique<AF_FW2>();
-    //atoms.Add(af_fw2.get());
+}
 
-    //auto af_f_0_31 = std::make_unique<AF_F_0_31>();
-    //atoms.Add(af_f_0_31.get());
-    //auto af_f_128_159 = std::make_unique<AF_F_128_159>();
-    //atoms.Add(af_f_128_159.get());
+void InitAtoms(AtomFuncs<Value_t>& atoms, MyTarget& target)
+{
+    auto af_x = std::make_unique<AF_ARG_X>();
+    atoms.Add(af_x.get());
+    g_atoms.push_back(std::move(af_x));
+
+    InitAtomConstants(atoms);
 
     auto af_not = std::make_unique<AF_NOT>();
     atoms.Add(af_not.get());

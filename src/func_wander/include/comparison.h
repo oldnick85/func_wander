@@ -64,25 +64,23 @@ class SuitabilityMetrics
 
     std::strong_ordering operator<=>(const SuitabilityMetrics& other) const noexcept
     {
-        if (m_distance > other.m_distance)
-            return std::strong_ordering::greater;
-        if (m_distance < other.m_distance)
-            return std::strong_ordering::less;
+        constexpr int64_t dist_c = 1;
+        constexpr int64_t uniq_c = 5;
+        constexpr int64_t maxl_c = 5;
+        constexpr int64_t fcnt_c = 0;
+        const int64_t difference_level =
+            uniq_c * (static_cast<int64_t>(m_functions_unique) - static_cast<int64_t>(other.m_functions_unique)) +
+            dist_c * (static_cast<int64_t>(m_distance) - static_cast<int64_t>(other.m_distance)) +
+            maxl_c * (static_cast<int64_t>(m_max_level) - static_cast<int64_t>(other.m_max_level)) +
+            fcnt_c * (static_cast<int64_t>(m_functions_count) - static_cast<int64_t>(other.m_functions_count));
 
-        if (m_max_level > other.m_max_level)
-            return std::strong_ordering::greater;
-        if (m_max_level < other.m_max_level)
+        if (difference_level < 0) {
             return std::strong_ordering::less;
+        }
 
-        //if (m_functions_count > other.m_functions_count)
-        //    return std::strong_ordering::greater;
-        //if (m_functions_count < other.m_functions_count)
-        //    return std::strong_ordering::less;
-
-        if (m_functions_unique > other.m_functions_unique)
+        if (difference_level > 0) {
             return std::strong_ordering::greater;
-        if (m_functions_unique < other.m_functions_unique)
-            return std::strong_ordering::less;
+        }
 
         return std::strong_ordering::equivalent;
     }

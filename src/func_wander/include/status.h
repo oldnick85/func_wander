@@ -27,6 +27,7 @@ struct WorkerStatus
     bool done = true;
     uint64_t task_count = 0;
     std::vector<BestFunc> best_functions;
+    std::size_t count = 0;
 };
 
 struct Status
@@ -77,7 +78,7 @@ struct Status
             else {
                 worker_done = std::format("{:.5f}", worker_status.done_percent);
             }
-            str += std::format("| #{:2} | task_count={:6} | {:32} done={}\n", worker_count, worker_status.task_count,
+            str += std::format("| #{:2} | task_count={:6} | {:32} done={}%\n", worker_count, worker_status.task_count,
                                (worker_status.done) ? "-" : worker_status.current_function, worker_done);
             ++worker_count;
         }

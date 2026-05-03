@@ -255,6 +255,12 @@ class SearchManager
         if (d == 0) {
             d = 1;
         }
+
+        m_count = 0;
+        for (const auto& worker_status : m_status.workers_status) {
+            m_count += worker_status.count;
+        }
+
         const std::size_t c_per_sec = m_count * 1000 / d;
 
         const auto sn_per_sec = m_snum * 1000 / d;
@@ -310,8 +316,7 @@ class SearchManager
         if (d == 0) {
             d = 1;
         }
-        m_status.iterations_count = m_count;
-        m_status.iterations_per_sec = m_status.iterations_count * 1000 / d;
+
         m_status.sn_per_sec = m_status.func_serial_number * 1000 / d;
         const auto remaining_sn = m_status.max_func_serial_number - m_status.func_serial_number;
         m_status.remaining = std::chrono::seconds(m_status.sn_per_sec != 0 ? remaining_sn / m_status.sn_per_sec : 0);
@@ -334,6 +339,13 @@ class SearchManager
             best_func.match_positions = m_target->MatchPositions(best.Calculate()).Str();
             m_status.best_functions.push_back(best_func);
         }
+
+        m_status.iterations_count = 0;
+        for (const auto& worker_status : m_status.workers_status) {
+            m_status.iterations_count += worker_status.count;
+        }
+
+        m_status.iterations_per_sec = m_status.iterations_count * 1000 / d;
     }
 
    private:

@@ -110,6 +110,7 @@ class SearchWorker
         const auto temp_done_percent = numerator / denominator;
         status.done_percent = temp_done_percent / 10.0F;
         status.task_count = m_task_count;
+        status.count = m_count;
 
         status.best_functions.reserve(m_best_pool.Functions().size());
         for (auto& best : m_best_pool.Functions()) {
